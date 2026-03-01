@@ -346,4 +346,3 @@ jobs:
             🌐 Web: ${{ needs.build-web.result }}
             
             🔗 Ссылка: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        format: markdown
