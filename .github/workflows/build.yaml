@@ -61,27 +61,53 @@ jobs:
           channel: 'stable'
           cache: true
           
+      - name: Clean disk space
+        run: |
+          echo "=== Free space before cleanup ==="
+          df -h
+          sudo apt-get clean
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /usr/local/share/boost
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+          docker rmi $(docker image ls -q) 2>/dev/null || true
+          echo "=== Free space after cleanup ==="
+          df -h
+          
       - name: Install dependencies
         run: flutter pub get
         
-      - name: Build Android APK (debug)
-        run: flutter build apk --debug
+      - name: Clean previous builds
+        run: |
+          rm -rf build/
+          rm -rf ~/.gradle/caches/
+          echo "=== Free space after cleaning builds ==="
+          df -h
+          
+      - name: Build Android APK (debug) - armeabi-v7a only
+        run: |
+          export GRADLE_OPTS="-Xmx2048m -Dorg.gradle.jvmargs=-Xmx2048m"
+          # Собираем только для одной архитектуры, чтобы меньше места занимало
+          flutter build apk --debug --target-platform=android-arm
         continue-on-error: true
         
-      - name: Build Android App Bundle (debug)
-        run: flutter build appbundle --debug
-        continue-on-error: true
-        
+      - name: Check for APK files
+        run: |
+          echo "=== Searching for APK files ==="
+          find . -name "*.apk" -type f | tee apk_files.txt
+          echo "=== Found APKs ==="
+          cat apk_files.txt || echo "No APK files found"
+          
       - name: Upload Android artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: android-build
           path: |
-            build/app/outputs/flutter-apk/app-debug.apk
-            build/app/outputs/bundle/debug/app-debug.aab
+            **/app-armeabi-v7a-debug.apk
+            **/app-debug.apk
           retention-days: 7
-          if-no-files-found: ignore
+          if-no-files-found: warn
 
   build-ios:
     needs: prepare
@@ -134,7 +160,9 @@ jobs:
             libx11-dev \
             libxrandr-dev \
             libxcursor-dev \
-            libxi-dev
+            libxi-dev \
+            libxinerama-dev \
+            libgl1-mesa-dev
           
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -265,24 +293,6 @@ jobs:
             OVERALL_STATUS="❌ Все сборки провалены"
           fi
           
-          # Формируем сообщение для Telegram (с \n вместо %0A)
-          TG_MESSAGE="🚀 Flutter Build Report\n"
-          TG_MESSAGE+="Репозиторий: ${{ needs.prepare.outputs.repository }}\n"
-          TG_MESSAGE+="Ветка: ${{ needs.prepare.outputs.branch }}\n"
-          TG_MESSAGE+="Версия: ${{ github.event.inputs.build_name }} (build ${{ github.event.inputs.build_number }})\n"
-          TG_MESSAGE+="Общий статус: $OVERALL_STATUS\n\n"
-          TG_MESSAGE+="Статусы платформ:\n"
-          TG_MESSAGE+="🤖 Android: $ANDROID_STATUS\n"
-          TG_MESSAGE+="🍎 iOS: $IOS_STATUS\n"
-          TG_MESSAGE+="🐧 Linux: $LINUX_STATUS\n"
-          TG_MESSAGE+="🪟 Windows: $WINDOWS_STATUS\n"
-          TG_MESSAGE+="🌐 Web: $WEB_STATUS\n\n"
-          TG_MESSAGE+="🔗 Ссылка на run:\n"
-          TG_MESSAGE+="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          
-          # Сохраняем в файл для Telegram (экранируем для JSON)
-          echo -n "$TG_MESSAGE" > tg_message.txt
-          
           # Создаем summary в GitHub
           echo "# Build Complete" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -297,7 +307,7 @@ jobs:
           
           echo "| Platform | Status | Artifacts |" >> $GITHUB_STEP_SUMMARY
           echo "|----------|--------|-----------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Android | $ANDROID_STATUS | APK/AAB |" >> $GITHUB_STEP_SUMMARY
+          echo "| Android | $ANDROID_STATUS | APK |" >> $GITHUB_STEP_SUMMARY
           echo "| iOS | $IOS_STATUS | .app |" >> $GITHUB_STEP_SUMMARY
           echo "| Linux | $LINUX_STATUS | tar.gz |" >> $GITHUB_STEP_SUMMARY
           echo "| Windows | $WINDOWS_STATUS | EXE/DLLs |" >> $GITHUB_STEP_SUMMARY
@@ -336,4 +346,4 @@ jobs:
             🌐 Web: ${{ needs.build-web.result }}
             
             🔗 Ссылка: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          format: markdown
+        format: markdown
