@@ -1,85 +1,57 @@
-name: Build Flutter App
+name: Build Flutter App (Manual)
 
 on:
-  # Ручной запуск через интерфейс GitHub
   workflow_dispatch:
     inputs:
-      build_ios:
-        description: 'Build for iOS'
+      build_name:
+        description: 'Build name/version (e.g., 1.0.0)'
         required: true
-        type: boolean
-        default: false
-      build_android:
-        description: 'Build for Android'
+        default: '1.0.0'
+      build_number:
+        description: 'Build number'
         required: true
-        type: boolean
-        default: true
-      build_windows:
-        description: 'Build for Windows'
+        default: '1'
+      platform:
+        description: 'Platform to build'
         required: true
-        type: boolean
-        default: false
-      build_linux:
-        description: 'Build for Linux'
-        required: true
-        type: boolean
-        default: false
-      build_macos:
-        description: 'Build for macOS'
-        required: true
-        type: boolean
-        default: false
-      build_web:
-        description: 'Build for Web'
-        required: true
-        type: boolean
-        default: true
-      build_snap:
-        description: 'Build Snap package'
-        required: true
-        type: boolean
-        default: false
-      build_mode:
-        description: 'Build mode (release/profile/debug)'
-        required: true
-        default: 'release'
         type: choice
         options:
-          - release
-          - profile
-          - debug
-
-  # Автоматический запуск при создании релиза
-  release:
-    types: [published]
+          - all
+          - android
+          - ios
+          - linux
+          - macos
+          - web
+          - windows
+          - snap
 
 jobs:
-  # Подготовка - определяем какие платформы собирать
   prepare:
     runs-on: ubuntu-latest
     outputs:
-      platforms: ${{ steps.set-platforms.outputs.platforms }}
+      repository: ${{ steps.repo.outputs.repository }}
+      branch: ${{ steps.repo.outputs.branch }}
     steps:
-      - id: set-platforms
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Get repository info
+        id: repo
         run: |
-          if [ "${{ github.event_name }}" == "release" ]; then
-            # При релизе собираем все платформы
-            echo "platforms={\"android\":true,\"ios\":true,\"windows\":true,\"linux\":true,\"macos\":true,\"web\":true,\"snap\":true}" >> $GITHUB_OUTPUT
-          else
-            # При ручном запуске используем выбранные платформы
-            echo "platforms={\"android\":${{ github.event.inputs.build_android }},\"ios\":${{ github.event.inputs.build_ios }},\"windows\":${{ github.event.inputs.build_windows }},\"linux\":${{ github.event.inputs.build_linux }},\"macos\":${{ github.event.inputs.build_macos }},\"web\":${{ github.event.inputs.build_web }},\"snap\":${{ github.event.inputs.build_snap }}}" >> $GITHUB_OUTPUT
-          fi
+          echo "repository=${GITHUB_REPOSITORY}" >> $GITHUB_OUTPUT
+          echo "branch=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
 
-  # Android сборка
   build-android:
     needs: prepare
-    if: fromJson(needs.prepare.outputs.platforms).android
+    if: ${{ github.event.inputs.platform == 'all' || github.event.inputs.platform == 'android' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       
       - name: Setup Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v3
         with:
           distribution: 'zulu'
           java-version: '17'
@@ -87,37 +59,30 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
+          flutter-version: '3.x'
           channel: 'stable'
           cache: true
           
       - name: Install dependencies
         run: flutter pub get
         
-      - name: Build Android App
-        run: |
-          if [ "${{ github.event.inputs.build_mode }}" == "release" ] || [ "${{ github.event_name }}" == "release" ]; then
-            flutter build apk --release --split-per-abi
-            flutter build appbundle --release
-          else
-            flutter build apk --${{ github.event.inputs.build_mode }}
-          fi
-        env:
-          KEY_STORE_PASSWORD: ${{ secrets.KEY_STORE_PASSWORD }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-          ALIAS: ${{ secrets.ALIAS }}
-          
-      - name: Upload Android APKs
+      - name: Build Android APK
+        run: flutter build apk --release --build-name=${{ github.event.inputs.build_name }} --build-number=${{ github.event.inputs.build_number }}
+        
+      - name: Build Android App Bundle
+        run: flutter build appbundle --release --build-name=${{ github.event.inputs.build_name }} --build-number=${{ github.event.inputs.build_number }}
+        
+      - name: Upload Android artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: android-apks
+          name: android-build
           path: |
-            build/app/outputs/flutter-apk/*.apk
-            build/app/outputs/bundle/release/*.aab
-            
-  # iOS сборка (только на macOS)
+            build/app/outputs/flutter-apk/app-release.apk
+            build/app/outputs/bundle/release/app-release.aab
+
   build-ios:
     needs: prepare
-    if: fromJson(needs.prepare.outputs.platforms).ios
+    if: ${{ github.event.inputs.platform == 'all' || github.event.inputs.platform == 'ios' }}
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -125,6 +90,7 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
+          flutter-version: '3.x'
           channel: 'stable'
           cache: true
           
@@ -132,86 +98,24 @@ jobs:
         run: flutter pub get
         
       - name: Build iOS
+        run: flutter build ios --release --no-codesign --build-name=${{ github.event.inputs.build_name }} --build-number=${{ github.event.inputs.build_number }}
+        
+      - name: Create IPA
         run: |
-          if [ "${{ github.event.inputs.build_mode }}" == "release" ] || [ "${{ github.event_name }}" == "release" ]; then
-            flutter build ios --release --no-codesign
-          else
-            flutter build ios --${{ github.event.inputs.build_mode }} --no-codesign
-          fi
+          cd build/ios/iphoneos
+          mkdir Payload
+          mv Runner.app Payload/
+          zip -r app.ipa Payload
           
-      - name: Upload iOS build
+      - name: Upload iOS artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ios-build
-          path: build/ios/iphoneos/Runner.app
-          
-  # macOS сборка
-  build-macos:
-    needs: prepare
-    if: fromJson(needs.prepare.outputs.platforms).macos
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: 'stable'
-          cache: true
-          
-      - name: Install dependencies
-        run: flutter pub get
-        
-      - name: Build macOS
-        run: |
-          if [ "${{ github.event.inputs.build_mode }}" == "release" ] || [ "${{ github.event_name }}" == "release" ]; then
-            flutter build macos --release
-          else
-            flutter build macos --${{ github.event.inputs.build_mode }}
-          fi
-          
-      - name: Upload macOS build
-        uses: actions/upload-artifact@v4
-        with:
-          name: macos-build
-          path: build/macos/Build/Products/Release/*.app
-          
-  # Windows сборка
-  build-windows:
-    needs: prepare
-    if: fromJson(needs.prepare.outputs.platforms).windows
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: 'stable'
-          cache: true
-          
-      - name: Install dependencies
-        run: flutter pub get
-        
-      - name: Build Windows
-        run: |
-          if ("${{ github.event.inputs.build_mode }}" -eq "release" -or "${{ github.event_name }}" -eq "release") {
-            flutter build windows --release
-          } else {
-            flutter build windows --${{ github.event.inputs.build_mode }}
-          }
-        shell: pwsh
-        
-      - name: Upload Windows build
-        uses: actions/upload-artifact@v4
-        with:
-          name: windows-build
-          path: build/windows/runner/Release/
-          
-  # Linux сборка
+          path: build/ios/iphoneos/app.ipa
+
   build-linux:
     needs: prepare
-    if: fromJson(needs.prepare.outputs.platforms).linux
+    if: ${{ github.event.inputs.platform == 'all' || github.event.inputs.platform == 'linux' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -224,6 +128,7 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
+          flutter-version: '3.x'
           channel: 'stable'
           cache: true
           
@@ -234,23 +139,17 @@ jobs:
         run: flutter pub get
         
       - name: Build Linux
-        run: |
-          if [ "${{ github.event.inputs.build_mode }}" == "release" ] || [ "${{ github.event_name }}" == "release" ]; then
-            flutter build linux --release
-          else
-            flutter build linux --${{ github.event.inputs.build_mode }}
-          fi
-          
-      - name: Upload Linux build
+        run: flutter build linux --release --build-name=${{ github.event.inputs.build_name }} --build-number=${{ github.event.inputs.build_number }}
+        
+      - name: Upload Linux artifacts
         uses: actions/upload-artifact@v4
         with:
           name: linux-build
           path: build/linux/x64/release/bundle/
-          
-  # Snap сборка
+
   build-snap:
     needs: prepare
-    if: fromJson(needs.prepare.outputs.platforms).snap
+    if: ${{ github.event.inputs.platform == 'all' || github.event.inputs.platform == 'snap' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -261,48 +160,57 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
+          flutter-version: '3.x'
           channel: 'stable'
           cache: true
           
+      - name: Install dependencies
+        run: flutter pub get
+        
+      - name: Build Linux (for Snap)
+        run: flutter build linux --release
+        
       - name: Build Snap
-        run: |
-          if [ -f "snap/snapcraft.yaml" ]; then
-            snapcraft
-          else
-            echo "No snapcraft.yaml found. Creating basic snap package..."
-            mkdir -p snap
-            cat > snap/snapcraft.yaml << EOF
-name: your-app-name
-version: '1.0.0'
-summary: Your App Summary
-description: Your App Description
-grade: stable
-confinement: strict
-
-parts:
-  flutter:
-    source: .
-    plugin: flutter
-    flutter-target: lib/main.dart
-
-apps:
-  your-app-name:
-    command: your_app_name
-    extensions: [flutter-stable]
-EOF
-            snapcraft
-          fi
-          
-      - name: Upload Snap package
+        run: snapcraft
+        
+      - name: Upload Snap artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: snap-package
-          path: '*.snap'
+          name: snap-build
+          path: "*.snap"
+
+  build-windows:
+    needs: prepare
+    if: ${{ github.event.inputs.platform == 'all' || github.event.inputs.platform == 'windows' }}
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.x'
+          channel: 'stable'
+          cache: true
           
-  # Web сборка
+      - name: Enable Windows desktop
+        run: flutter config --enable-windows-desktop
+        
+      - name: Install dependencies
+        run: flutter pub get
+        
+      - name: Build Windows
+        run: flutter build windows --release --build-name=${{ github.event.inputs.build_name }} --build-number=${{ github.event.inputs.build_number }}
+        
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-build
+          path: build/windows/x64/runner/Release/
+
   build-web:
     needs: prepare
-    if: fromJson(needs.prepare.outputs.platforms).web
+    if: ${{ github.event.inputs.platform == 'all' || github.event.inputs.platform == 'web' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -310,6 +218,7 @@ EOF
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
+          flutter-version: '3.x'
           channel: 'stable'
           cache: true
           
@@ -317,23 +226,46 @@ EOF
         run: flutter pub get
         
       - name: Build Web
-        run: |
-          if [ "${{ github.event.inputs.build_mode }}" == "release" ] || [ "${{ github.event_name }}" == "release" ]; then
-            flutter build web --release
-          else
-            flutter build web --${{ github.event.inputs.build_mode }}
-          fi
-          
-      - name: Upload Web build
+        run: flutter build web --release --web-renderer html --base-href "/"
+        
+      - name: Upload Web artifacts
         uses: actions/upload-artifact@v4
         with:
           name: web-build
           path: build/web/
+
+  build-macos:
+    needs: prepare
+    if: ${{ github.event.inputs.platform == 'all' || github.event.inputs.platform == 'macos' }}
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.x'
+          channel: 'stable'
+          cache: true
           
-  # Загрузка артефактов в релиз
-  upload-to-release:
-    needs: [build-android, build-ios, build-windows, build-linux, build-macos, build-web, build-snap]
-    if: github.event_name == 'release'
+      - name: Enable macOS desktop
+        run: flutter config --enable-macos-desktop
+        
+      - name: Install dependencies
+        run: flutter pub get
+        
+      - name: Build macOS
+        run: flutter build macos --release --build-name=${{ github.event.inputs.build_name }} --build-number=${{ github.event.inputs.build_number }}
+        
+      - name: Upload macOS artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-build
+          path: build/macos/Build/Products/Release/
+
+  summary:
+    needs: [prepare, build-android, build-ios, build-linux, build-snap, build-windows, build-web, build-macos]
+    if: always()
     runs-on: ubuntu-latest
     steps:
       - name: Download all artifacts
@@ -341,9 +273,20 @@ EOF
         with:
           path: artifacts/
           
-      - name: Upload to Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: artifacts/**/*
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create build summary
+        run: |
+          echo "# Build Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Repository Information" >> $GITHUB_STEP_SUMMARY
+          echo "- Repository: ${{ needs.prepare.outputs.repository }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Branch: ${{ needs.prepare.outputs.branch }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Build Name: ${{ github.event.inputs.build_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Build Number: ${{ github.event.inputs.build_number }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Build Artifacts" >> $GITHUB_STEP_SUMMARY
+          
+          if [ -d "artifacts" ]; then
+            ls -la artifacts/ >> $GITHUB_STEP_SUMMARY
+          else
+            echo "No artifacts were created" >> $GITHUB_STEP_SUMMARY
+          fi
