@@ -20,7 +20,6 @@ on:
           - android
           - ios
           - linux
-          - macos
           - web
           - windows
           - snap
@@ -66,19 +65,20 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
         
-      - name: Build Android APK
-        run: flutter build apk --release --build-name=${{ github.event.inputs.build_name }} --build-number=${{ github.event.inputs.build_number }}
+      - name: Build Android APK (debug)
+        run: flutter build apk --debug
         
-      - name: Build Android App Bundle
-        run: flutter build appbundle --release --build-name=${{ github.event.inputs.build_name }} --build-number=${{ github.event.inputs.build_number }}
+      - name: Build Android App Bundle (debug)
+        run: flutter build appbundle --debug
         
       - name: Upload Android artifacts
         uses: actions/upload-artifact@v4
         with:
           name: android-build
           path: |
-            build/app/outputs/flutter-apk/app-release.apk
-            build/app/outputs/bundle/release/app-release.aab
+            build/app/outputs/flutter-apk/app-debug.apk
+            build/app/outputs/bundle/debug/app-debug.aab
+          retention-days: 7
 
   build-ios:
     needs: prepare
@@ -97,25 +97,59 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
         
-      - name: Build iOS
-        run: flutter build ios --release --no-codesign --build-name=${{ github.event.inputs.build_name }} --build-number=${{ github.event.inputs.build_number }}
+      - name: Build iOS (debug, no codesign)
+        run: flutter build ios --debug --no-codesign
         
-      - name: Create IPA
-        run: |
-          cd build/ios/iphoneos
-          mkdir Payload
-          mv Runner.app Payload/
-          zip -r app.ipa Payload
-          
       - name: Upload iOS artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ios-build
-          path: build/ios/iphoneos/app.ipa
+          path: build/ios/iphoneos/Runner.app
+          retention-days: 7
 
   build-linux:
     needs: prepare
     if: ${{ github.event.inputs.platform == 'all' || github.event.inputs.platform == 'linux' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake ninja-build libgtk-3-dev libwebkit2gtk-4.1-0 libwebkit2gtk-4.1-dev
+          
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.x'
+          channel: 'stable'
+          cache: true
+          
+      - name: Enable Linux desktop
+        run: flutter config --enable-linux-desktop
+        
+      - name: Install dependencies
+        run: flutter pub get
+        
+      - name: Build Linux (debug)
+        run: flutter build linux --debug
+        
+      - name: Create tar.gz archive
+        run: |
+          cd build/linux/x64/debug/bundle
+          tar -czf ../../../../linux-build.tar.gz .
+          
+      - name: Upload Linux artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-build
+          path: linux-build.tar.gz
+          retention-days: 7
+
+  build-snap:
+    needs: prepare
+    if: ${{ github.event.inputs.platform == 'all' || github.event.inputs.platform == 'snap' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -132,52 +166,41 @@ jobs:
           channel: 'stable'
           cache: true
           
-      - name: Enable Linux desktop
-        run: flutter config --enable-linux-desktop
-        
       - name: Install dependencies
         run: flutter pub get
         
-      - name: Build Linux
-        run: flutter build linux --release --build-name=${{ github.event.inputs.build_name }} --build-number=${{ github.event.inputs.build_number }}
-        
-      - name: Upload Linux artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: linux-build
-          path: build/linux/x64/release/bundle/
-
-  build-snap:
-    needs: prepare
-    if: ${{ github.event.inputs.platform == 'all' || github.event.inputs.platform == 'snap' }}
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      
+      - name: Check for snapcraft.yaml
+        id: check_snap
+        run: |
+          if [ -f "snap/snapcraft.yaml" ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+          
       - name: Install Snapcraft
+        if: steps.check_snap.outputs.exists == 'true'
         run: sudo snap install snapcraft --classic
         
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.x'
-          channel: 'stable'
-          cache: true
-          
-      - name: Install dependencies
-        run: flutter pub get
-        
       - name: Build Linux (for Snap)
-        run: flutter build linux --release
+        if: steps.check_snap.outputs.exists == 'true'
+        run: flutter build linux --debug
         
       - name: Build Snap
+        if: steps.check_snap.outputs.exists == 'true'
         run: snapcraft
         
       - name: Upload Snap artifacts
+        if: steps.check_snap.outputs.exists == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: snap-build
           path: "*.snap"
+          retention-days: 7
+          
+      - name: Skip Snap build
+        if: steps.check_snap.outputs.exists == 'false'
+        run: echo "No snap/snapcraft.yaml found, skipping snap build"
 
   build-windows:
     needs: prepare
@@ -199,14 +222,15 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
         
-      - name: Build Windows
-        run: flutter build windows --release --build-name=${{ github.event.inputs.build_name }} --build-number=${{ github.event.inputs.build_number }}
+      - name: Build Windows (debug)
+        run: flutter build windows --debug
         
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4
         with:
           name: windows-build
-          path: build/windows/x64/runner/Release/
+          path: build/windows/x64/runner/Debug/
+          retention-days: 7
 
   build-web:
     needs: prepare
@@ -225,46 +249,18 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
         
-      - name: Build Web
-        run: flutter build web --release --web-renderer html --base-href "/"
+      - name: Build Web (debug)
+        run: flutter build web --debug
         
       - name: Upload Web artifacts
         uses: actions/upload-artifact@v4
         with:
           name: web-build
           path: build/web/
-
-  build-macos:
-    needs: prepare
-    if: ${{ github.event.inputs.platform == 'all' || github.event.inputs.platform == 'macos' }}
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.x'
-          channel: 'stable'
-          cache: true
-          
-      - name: Enable macOS desktop
-        run: flutter config --enable-macos-desktop
-        
-      - name: Install dependencies
-        run: flutter pub get
-        
-      - name: Build macOS
-        run: flutter build macos --release --build-name=${{ github.event.inputs.build_name }} --build-number=${{ github.event.inputs.build_number }}
-        
-      - name: Upload macOS artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: macos-build
-          path: build/macos/Build/Products/Release/
+          retention-days: 7
 
   summary:
-    needs: [prepare, build-android, build-ios, build-linux, build-snap, build-windows, build-web, build-macos]
+    needs: [prepare, build-android, build-ios, build-linux, build-snap, build-windows, build-web]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -283,7 +279,19 @@ jobs:
           echo "- Build Name: ${{ github.event.inputs.build_name }}" >> $GITHUB_STEP_SUMMARY
           echo "- Build Number: ${{ github.event.inputs.build_number }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "## Build Artifacts" >> $GITHUB_STEP_SUMMARY
+          echo "## Build Status" >> $GITHUB_STEP_SUMMARY
+          
+          echo "| Platform | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Android | ${{ needs.build-android.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "| iOS | ${{ needs.build-ios.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "| Linux | ${{ needs.build-linux.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "| Windows | ${{ needs.build-windows.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "| Web | ${{ needs.build-web.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "| Snap | ${{ needs.build-snap.result }}" >> $GITHUB_STEP_SUMMARY
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Artifacts" >> $GITHUB_STEP_SUMMARY
           
           if [ -d "artifacts" ]; then
             ls -la artifacts/ >> $GITHUB_STEP_SUMMARY
