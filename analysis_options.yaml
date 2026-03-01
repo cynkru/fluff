@@ -1,0 +1,68 @@
+include: package:flutter_lints/flutter.yaml
+
+linter:
+  rules:
+    - avoid_print
+    - constant_identifier_names
+    - prefer_final_locals
+    - prefer_final_in_for_each
+    - sort_pub_dependencies
+    - require_trailing_commas
+    - omit_local_variable_types
+    - cancel_subscriptions
+    - always_declare_return_types
+    - no_adjacent_strings_in_list
+    - test_types_in_equals
+    - throw_in_finally
+    - unnecessary_statements
+    - avoid_bool_literals_in_conditional_expressions
+    - prefer_single_quotes
+    - prefer_const_declarations
+    - unnecessary_lambdas
+
+analyzer:
+  plugins:
+    - dart_code_linter
+  errors:
+    todo: ignore
+    use_build_context_synchronously: ignore
+  exclude:
+    - lib/l10n/*.dart
+
+dart_code_linter:
+  rules:
+    # Dart specific:
+    - avoid-dynamic
+    - avoid-redundant-async
+    - avoid-unnecessary-type-assertions
+    - avoid-unnecessary-type-casts
+    - avoid-unrelated-type-assertions
+    - no-equal-then-else
+    - prefer-first
+    - prefer-last
+    - prefer-immediate-return
+    - prefer-enums-by-name
+    - avoid-unnecessary-conditionals
+    # TODO:
+    # - member-ordering
+    # - avoid-late-keyword
+    # - avoid-non-null-assertion
+    # - avoid-global-state
+    # - prefer-match-file-name
+    # - avoid-banned-imports:
+    #     entries:
+    #     - paths: ['some/folder/.*\.dart', 'another/folder/.*\.dart']
+    #       deny: ['package:flutter/material.dart']
+    #       message: 'Do not import Flutter Material Design library, we should not depend on it!'
+    # - no-magic-number:
+    #     allowed: [-1, 0, 1,2,4,6,8,12,16,32,40,56,64]
+    #     allow-only-once: true
+    # Flutter specific:
+    - prefer-media-query-direct-access
+    - avoid-wrapping-in-padding
+    - prefer-correct-edge-insets-constructor
+    # TODO:
+    # - avoid-returning-widgets
+    # - prefer-single-widget-per-file:
+    #    ignore-private-widgets: true
+    # - prefer-extracting-callbacks
