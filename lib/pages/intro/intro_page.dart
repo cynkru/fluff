@@ -119,16 +119,13 @@ class IntroPage extends StatelessWidget {
                               final matrix = Matrix.of(context);
                               final client = await matrix.getLoginClient();
                               
-                              // Если клиент не получен, создаем новый
+                              // Если клиент не получен - показываем ошибку
                               if (client == null) {
-                                // Создаем клиент вручную
-                                final newClient = Client('FluffyChat');
-                                newClient.homeserver = Uri.parse('https://matrix.cynk.ru');
-                                
                                 if (context.mounted) {
-                                  context.go(
-                                    '${GoRouterState.of(context).uri.path}/login',
-                                    extra: newClient,
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Ошибка подключения к серверу'),
+                                    ),
                                   );
                                 }
                                 return;
