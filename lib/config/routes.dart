@@ -32,7 +32,7 @@ import 'package:fluffychat/pages/settings_notifications/settings_notifications.d
 import 'package:fluffychat/pages/settings_password/settings_password.dart';
 import 'package:fluffychat/pages/settings_security/settings_security.dart';
 import 'package:fluffychat/pages/settings_style/settings_style.dart';
-import 'package:fluffychat/pages/sign_in/sign_in_page.dart';
+//import 'package:fluffychat/pages/sign_in/sign_in_page.dart';
 import 'package:fluffychat/widgets/config_viewer.dart';
 import 'package:fluffychat/widgets/layouts/empty_page.dart';
 import 'package:fluffychat/widgets/layouts/two_column_layout.dart';
@@ -71,18 +71,6 @@ abstract class AppRoutes {
           defaultPageBuilder(context, state, const IntroPage()),
       redirect: loggedInRedirect,
       routes: [
-        GoRoute(
-          path: 'sign_in',
-          pageBuilder: (context, state) =>
-              defaultPageBuilder(context, state, SignInPage(signUp: false)),
-          redirect: loggedInRedirect,
-        ),
-        GoRoute(
-          path: 'sign_up',
-          pageBuilder: (context, state) =>
-              defaultPageBuilder(context, state, SignInPage(signUp: true)),
-          redirect: loggedInRedirect,
-        ),
         GoRoute(
           path: 'login',
           pageBuilder: (context, state) => defaultPageBuilder(
@@ -266,24 +254,6 @@ abstract class AppRoutes {
                       pageBuilder: (context, state) =>
                           defaultPageBuilder(context, state, const IntroPage()),
                       routes: [
-                        GoRoute(
-                          path: 'sign_in',
-                          pageBuilder: (context, state) => defaultPageBuilder(
-                            context,
-                            state,
-                            SignInPage(signUp: false),
-                          ),
-                          redirect: loggedOutRedirect,
-                        ),
-                        GoRoute(
-                          path: 'sign_up',
-                          pageBuilder: (context, state) => defaultPageBuilder(
-                            context,
-                            state,
-                            SignInPage(signUp: true),
-                          ),
-                          redirect: loggedOutRedirect,
-                        ),
                         GoRoute(
                           path: 'login',
                           pageBuilder: (context, state) => defaultPageBuilder(

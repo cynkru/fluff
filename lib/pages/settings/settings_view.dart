@@ -104,7 +104,7 @@ class SettingsView extends StatelessWidget {
                               iconColor: theme.colorScheme.secondary,
                             ),
                             label: Text(
-                              mxid.localpart,
+                              mxid.localpart.toString(),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               //    style: const TextStyle(fontSize: 12),
