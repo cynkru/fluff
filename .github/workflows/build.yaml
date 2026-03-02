@@ -25,6 +25,9 @@ on:
 
 env:
   FLUTTER_VERSION: '3.x'
+  # Увеличиваем память для всех Gradle операций
+  GRADLE_OPTS: -Xmx6g -Xms4g -XX:MaxMetaspaceSize=1g -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8
+  JAVA_OPTS: -Xmx6g -Xms4g -XX:MaxMetaspaceSize=1g
 
 jobs:
   prepare:
@@ -32,6 +35,7 @@ jobs:
     outputs:
       repository: ${{ steps.repo.outputs.repository }}
       branch: ${{ steps.repo.outputs.branch }}
+      cache_key: ${{ steps.cache_key.outputs.key }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -43,6 +47,18 @@ jobs:
         run: |
           echo "repository=${GITHUB_REPOSITORY}" >> $GITHUB_OUTPUT
           echo "branch=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
+      
+      - name: Generate cache key
+        id: cache_key
+        run: |
+          # Создаем ключ кеша на основе pubspec.lock и важных файлов
+          if [ -f "pubspec.lock" ]; then
+            CACHE_KEY="${{ runner.os }}-flutter-${{ hashFiles('pubspec.lock') }}"
+          else
+            CACHE_KEY="${{ runner.os }}-flutter-${{ hashFiles('pubspec.yaml') }}"
+          fi
+          echo "key=$CACHE_KEY" >> $GITHUB_OUTPUT
+          echo "Cache key: $CACHE_KEY"
 
   build-android:
     needs: prepare
@@ -63,27 +79,47 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: 'stable'
           cache: true
-          
+          cache-key: ${{ needs.prepare.outputs.cache_key }} # Используем общий ключ
+      
+      # Улучшенное кеширование Gradle
       - name: Cache Gradle
         uses: actions/cache@v4
         with:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
+            !~/.gradle/caches/build-cache-* # Исключаем кеш сборки для избежания конфликтов
             android/.gradle
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+            android/app/build
+            android/.idea
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties', 'android/app/build.gradle') }}
           restore-keys: |
             ${{ runner.os }}-gradle-
       
+      # Кеширование Flutter dependencies с приоритетом
       - name: Cache Flutter dependencies
         uses: actions/cache@v4
         with:
           path: |
             ~/.pub-cache
             .dart_tool
-          key: ${{ runner.os }}-flutter-${{ hashFiles('pubspec.lock') }}
+            .flutter-plugins
+            .flutter-plugins-dependencies
+          key: ${{ needs.prepare.outputs.cache_key }}
           restore-keys: |
             ${{ runner.os }}-flutter-
+      
+      # Кеширование build artifacts для ускорения последующих сборок
+      - name: Cache build artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            build/app/intermediates
+            build/app/outputs
+            .gradle
+          key: ${{ runner.os }}-build-${{ github.run_id }}
+          restore-keys: |
+            ${{ runner.os }}-build-
       
       - name: Clean disk space
         run: |
@@ -100,116 +136,180 @@ jobs:
           
       - name: Install dependencies
         run: flutter pub get
-        
-      - name: Configure Gradle properties for better memory management
+      
+      # Создаем оптимизированный gradle.properties
+      - name: Configure Gradle properties
         run: |
           mkdir -p android
           cat > android/gradle.properties << EOF
-          org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=1024m -XX:+HeapDumpOnOutOfMemoryError
+          # Memory settings
+          org.gradle.jvmargs=-Xmx6g -Xms4g -XX:MaxMetaspaceSize=1g -XX:+HeapDumpOnOutOfMemoryError -XX:+UseParallelGC -XX:ParallelGCThreads=4
+          
+          # Performance settings
           org.gradle.daemon=false
           org.gradle.parallel=true
           org.gradle.caching=true
           org.gradle.configureondemand=true
+          org.gradle.workers.max=4
+          
+          # Android settings
           android.useAndroidX=true
           android.enableJetifier=true
-          # Отключаем некоторые оптимизации для уменьшения использования памяти
+          
+          # Disable Kotlin incremental compilation for better memory usage
           kotlin.incremental=false
           kotlin.compiler.execution.strategy=in-process
+          
+          # Disable some tasks for faster builds
+          android.defaults.buildfeatures.buildconfig=true
+          android.defaults.buildfeatures.aidl=false
+          android.defaults.buildfeatures.renderscript=false
+          android.defaults.buildfeatures.resvalues=false
+          android.defaults.buildfeatures.shaders=false
+          
+          # Memory optimization for Jetifier
+          android.jetifier.ignorelist=armeabi_v7a_debug,armeabi_v7a_profile,armeabi_v7a_release,x86_64_debug,x86_64_profile,x86_64_release
           EOF
+          
           echo "Gradle properties configured:"
           cat android/gradle.properties
-          
-      - name: Clean previous builds
+      
+      # Создаем settings.gradle с оптимизациями
+      - name: Optimize Gradle settings
         run: |
-          flutter clean
-          rm -rf build/
+          cat >> android/settings.gradle << EOF
           
-      - name: Patch Flutter Android engine to avoid Jetifier memory issues
-        run: |
-          # Создаем скрипт для исключения проблемных библиотек из Jetifier
-          mkdir -p android/app
-          cat > android/app/build.gradle.patch << 'EOF'
-          android {
-              // Добавляем конфигурацию для исключения Flutter engine из Jetifier
-              configurations.all {
-                  resolutionStrategy {
-                      force 'io.flutter:armeabi_v7a_debug:1.0.0-6c0baaebf70e0148f485f27d5616b3d3382da7bf'
+          // Оптимизация для больших проектов
+          gradle.projectsLoaded {
+              gradle.settingsEvaluated {
+                  gradle.rootProject {
+                      buildCache {
+                          local {
+                              enabled = true
+                              removeUnusedEntriesAfterDays = 30
+                          }
+                      }
                   }
               }
           }
-          
-          // Отключаем Jetifier для Flutter engine
-          configurations.all {
-              resolutionStrategy.dependencySubstitution {
-                  substitute module('io.flutter:armeabi_v7a_debug') using module('io.flutter:armeabi_v7a_debug:1.0.0-6c0baaebf70e0148f485f27d5616b3d3382da7bf') withoutClassifier()
-              }
-          }
           EOF
-          
-          # Применяем патч если нужно, но обычно лучше использовать другой подход
-          echo "✅ Подготовка к сборке с оптимизированной памятью"
-          
-      - name: Build Android APK (debug) with memory optimizations
+      
+      - name: Clean previous builds (optional, only if needed)
+        run: |
+          # Не всегда нужно чистить, это замедляет сборку
+          if [ "${{ github.event.inputs.clean_build }}" == "true" ]; then
+            flutter clean
+            rm -rf build/
+          else
+            echo "Using cached build files"
+          fi
+        continue-on-error: true
+      
+      # Отключаем Jetifier для проблемных модулей через gradle.properties
+      - name: Create gradle.properties with Jetifier exclusions
+        run: |
+          # Добавляем в gradle.properties исключения для проблемных модулей
+          echo "android.jetifier.blacklist=.*armeabi_v7a_debug.*,.*armeabi_v7a_profile.*,.*armeabi_v7a_release.*" >> android/gradle.properties
+          echo "✅ Jetifier blacklist configured"
+      
+      # Основная сборка с оптимизациями
+      - name: Build Android APK with optimized memory
         id: build
         run: |
-          # Устанавливаем переменные окружения для максимальной памяти
-          export JAVA_OPTS="-Xmx4096m -XX:MaxMetaspaceSize=1024m"
-          export GRADLE_OPTS="-Xmx4096m -XX:MaxMetaspaceSize=1024m -Dorg.gradle.jvmargs='-Xmx4096m -XX:MaxMetaspaceSize=1024m'"
-          
-          # Собираем с дополнительными флагами для уменьшения использования памяти
-          flutter build apk --debug --target-platform=android-arm \
+          # Собираем с оптимизациями
+          flutter build apk --debug \
+            --target-platform=android-arm,android-arm64 \
             --verbose \
             --no-sound-null-safety \
             --dart-define=SUPPRESS_ANALYTICS=true
           
           echo "status=success" >> $GITHUB_OUTPUT
-        continue-on-error: true
-        
+      
+      # Альтернативная сборка с отключенным Jetifier если первая не удалась
       - name: Alternative build with disabled Jetifier
-        if: steps.build.outcome == 'failure'
+        if: steps.build.outcome == 'failure' || failure()
         run: |
-          echo "First build failed, trying with disabled Jetifier and more aggressive memory settings..."
+          echo "First build failed, trying with disabled Jetifier..."
           
           # Полностью отключаем Jetifier
           sed -i 's/android.enableJetifier=true/android.enableJetifier=false/' android/gradle.properties
           
           # Добавляем больше памяти
-          export JAVA_OPTS="-Xmx6144m -XX:MaxMetaspaceSize=1024m -XX:+UseG1GC -XX:+UseStringDeduplication"
-          export GRADLE_OPTS="-Xmx6144m -XX:MaxMetaspaceSize=1024m -Dorg.gradle.jvmargs='-Xmx6144m -XX:MaxMetaspaceSize=1024m -XX:+UseG1GC'"
+          export JAVA_OPTS="-Xmx7g -Xms5g -XX:MaxMetaspaceSize=1g -XX:+UseG1GC -XX:+UseStringDeduplication -XX:+HeapDumpOnOutOfMemoryError"
+          export GRADLE_OPTS="-Xmx7g -Xms5g -XX:MaxMetaspaceSize=1g"
           
-          # Очищаем и пробуем снова
-          flutter clean
-          rm -rf ~/.gradle/caches/
+          # Чистим кеш Jetifier
+          rm -rf ~/.gradle/caches/transforms-* || true
+          rm -rf ~/.gradle/caches/jetifier-* || true
           
-          # Пробуем собрать с меньшим количеством задач
-          flutter build apk --debug --target-platform=android-arm
-          
-      - name: Build APK using assemble directly (if both previous failed)
+          # Пробуем собрать снова
+          flutter build apk --debug --target-platform=android-arm,android-arm64
+      
+      # Прямая сборка через Gradle если Flutter build не работает
+      - name: Direct Gradle build
         if: steps.build.outcome == 'failure' && failure()
         run: |
           echo "Trying direct gradle assemble..."
           cd android
-          ./gradlew clean
-          ./gradlew assembleDebug -Ptarget-platform=android-arm --stacktrace --no-daemon
           
-      - name: Check for APK files
+          # Очищаем кеш Jetifier
+          ./gradlew clean --no-daemon
+          rm -rf ~/.gradle/caches/transforms-* || true
+          
+          # Собираем с явным указанием памяти
+          ./gradlew assembleDebug \
+            -Ptarget-platform=android-arm,android-arm64 \
+            -Pverbose=true \
+            --stacktrace \
+            --no-daemon \
+            --max-workers=2 \
+            --parallel \
+            --build-cache
+      
+      # Поиск всех APK файлов
+      - name: Find and organize APK files
         run: |
           echo "=== Searching for APK files ==="
-          find . -name "*.apk" -type f | tee apk_files.txt
-          echo "=== Found APKs ==="
-          cat apk_files.txt || echo "No APK files found"
+          mkdir -p apk-artifacts
           
+          # Копируем все найденные APK в одну папку
+          find . -name "*.apk" -type f -exec cp {} apk-artifacts/ \;
+          
+          # Создаем список файлов
+          ls -la apk-artifacts/ > apk-list.txt
+          
+          echo "=== Found APKs ==="
+          cat apk-list.txt
+          
+          # Показываем размеры
+          echo "=== APK sizes ==="
+          du -sh apk-artifacts/* 2>/dev/null || echo "No APKs found"
+      
+      # Загружаем артефакты
       - name: Upload Android artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: android-build
+          name: android-build-${{ github.event.inputs.build_name }}-${{ github.event.inputs.build_number }}
           path: |
-            **/app-armeabi-v7a-debug.apk
-            **/app-debug.apk
-            **/*.apk
+            apk-artifacts/
+            **/build/app/outputs/flutter-apk/*.apk
+            **/build/app/outputs/apk/**/*.apk
           retention-days: 7
           if-no-files-found: warn
+      
+      # Сохраняем логи для отладки если сборка упала
+      - name: Upload build logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-build-logs
+          path: |
+            **/build/app/outputs/flutter-apk/
+            **/build/app/outputs/logs/
+            **/build/app/reports/
+            ~/.gradle/daemon/*/daemon-*.log
+          retention-days: 7
 
   build-ios:
     needs: prepare
@@ -218,43 +318,63 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - name: Cache Flutter dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.pub-cache
-            .dart_tool
-          key: ${{ runner.os }}-flutter-${{ hashFiles('pubspec.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-flutter-
-      
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: 'stable'
           cache: true
-          
+          cache-key: ${{ needs.prepare.outputs.cache_key }}
+      
+      - name: Cache Flutter dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pub-cache
+            .dart_tool
+            .flutter-plugins
+            .flutter-plugins-dependencies
+          key: ${{ needs.prepare.outputs.cache_key }}
+          restore-keys: |
+            ${{ runner.os }}-flutter-
+      
       - name: Install dependencies
         run: flutter pub get
         
       - name: Cache CocoaPods
         uses: actions/cache@v4
         with:
-          path: ios/Pods
+          path: |
+            ios/Pods
+            ~/.cocoapods
           key: ${{ runner.os }}-pods-${{ hashFiles('ios/Podfile.lock') }}
           restore-keys: |
             ${{ runner.os }}-pods-
-        
+      
+      - name: Install CocoaPods dependencies
+        run: |
+          cd ios
+          pod install --repo-update || pod install --verbose
+      
       - name: Build iOS (debug, no codesign)
-        run: flutter build ios --debug --no-codesign
-        
+        run: |
+          flutter build ios --debug --no-codesign \
+            --verbose
+      
+      - name: Create iOS artifact archive
+        run: |
+          cd build/ios/iphoneos
+          zip -r ../../../ios-build.zip Runner.app
+      
       - name: Upload iOS artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ios-build
-          path: build/ios/iphoneos/Runner.app
+          name: ios-build-${{ github.event.inputs.build_name }}-${{ github.event.inputs.build_number }}
+          path: ios-build.zip
           retention-days: 7
+
+  # Остальные jobs (build-linux, build-windows, build-web) остаются без изменений
+  # с добавлением улучшенного кеширования по аналогии с iOS
 
   build-linux:
     needs: prepare
@@ -269,7 +389,9 @@ jobs:
           path: |
             ~/.pub-cache
             .dart_tool
-          key: ${{ runner.os }}-flutter-${{ hashFiles('pubspec.lock') }}
+            .flutter-plugins
+            .flutter-plugins-dependencies
+          key: ${{ needs.prepare.outputs.cache_key }}
           restore-keys: |
             ${{ runner.os }}-flutter-
       
@@ -300,38 +422,28 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: 'stable'
           cache: true
+          cache-key: ${{ needs.prepare.outputs.cache_key }}
           
       - name: Enable Linux desktop
         run: flutter config --enable-linux-desktop
         
-      - name: Clean previous builds
-        run: |
-          rm -rf build/linux
-          rm -rf .dart_tool
-          
       - name: Install dependencies
         run: flutter pub get
         
       - name: Build Linux (debug)
         run: flutter build linux --debug
-        continue-on-error: true
         
       - name: Create tar.gz archive
-        if: success() || failure()
         run: |
           if [ -d "build/linux/x64/debug/bundle" ]; then
             cd build/linux/x64/debug/bundle
             tar -czf ../../../../../linux-build.tar.gz .
-            echo "✅ Linux build created successfully" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "::warning::Linux build directory not found"
           fi
           
       - name: Upload Linux artifacts
-        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: linux-build
+          name: linux-build-${{ github.event.inputs.build_name }}-${{ github.event.inputs.build_number }}
           path: linux-build.tar.gz
           retention-days: 7
           if-no-files-found: ignore
@@ -349,7 +461,9 @@ jobs:
           path: |
             ~\.pub-cache
             .dart_tool
-          key: ${{ runner.os }}-flutter-${{ hashFiles('pubspec.lock') }}
+            .flutter-plugins
+            .flutter-plugins-dependencies
+          key: ${{ needs.prepare.outputs.cache_key }}
           restore-keys: |
             ${{ runner.os }}-flutter-
       
@@ -359,6 +473,7 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: 'stable'
           cache: true
+          cache-key: ${{ needs.prepare.outputs.cache_key }}
           
       - name: Enable Windows desktop
         run: flutter config --enable-windows-desktop
@@ -372,7 +487,7 @@ jobs:
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: windows-build
+          name: windows-build-${{ github.event.inputs.build_name }}-${{ github.event.inputs.build_number }}
           path: build/windows/x64/runner/Debug/
           retention-days: 7
 
@@ -389,7 +504,9 @@ jobs:
           path: |
             ~/.pub-cache
             .dart_tool
-          key: ${{ runner.os }}-flutter-${{ hashFiles('pubspec.lock') }}
+            .flutter-plugins
+            .flutter-plugins-dependencies
+          key: ${{ needs.prepare.outputs.cache_key }}
           restore-keys: |
             ${{ runner.os }}-flutter-
       
@@ -399,6 +516,7 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: 'stable'
           cache: true
+          cache-key: ${{ needs.prepare.outputs.cache_key }}
           
       - name: Install dependencies
         run: flutter pub get
@@ -409,7 +527,7 @@ jobs:
       - name: Upload Web artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: web-build
+          name: web-build-${{ github.event.inputs.build_name }}-${{ github.event.inputs.build_number }}
           path: build/web/
           retention-days: 7
 
@@ -423,8 +541,7 @@ jobs:
         with:
           path: artifacts/
           
-      - name: Create build summary and Telegram message
-        id: build_summary
+      - name: Create build summary
         run: |
           # Собираем статусы
           ANDROID_STATUS="${{ needs.build-android.result }}"
@@ -435,64 +552,65 @@ jobs:
           
           # Определяем общий статус
           if [[ "$ANDROID_STATUS" == "success" || "$IOS_STATUS" == "success" || "$LINUX_STATUS" == "success" || "$WINDOWS_STATUS" == "success" || "$WEB_STATUS" == "success" ]]; then
-            OVERALL_STATUS="✅ Частично успешно"
             if [[ "$ANDROID_STATUS" == "success" && "$IOS_STATUS" == "success" && "$LINUX_STATUS" == "success" && "$WINDOWS_STATUS" == "success" && "$WEB_STATUS" == "success" ]]; then
               OVERALL_STATUS="✅ Полностью успешно"
+            else
+              OVERALL_STATUS="⚠️ Частично успешно"
             fi
           else
             OVERALL_STATUS="❌ Все сборки провалены"
           fi
           
-          # Создаем summary в GitHub
-          echo "# Build Complete" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "## Repository Information" >> $GITHUB_STEP_SUMMARY
-          echo "- Repository: ${{ needs.prepare.outputs.repository }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Branch: ${{ needs.prepare.outputs.branch }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Build Name: ${{ github.event.inputs.build_name }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Build Number: ${{ github.event.inputs.build_number }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Overall Status: $OVERALL_STATUS" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "## Build Status" >> $GITHUB_STEP_SUMMARY
-          
-          echo "| Platform | Status | Artifacts |" >> $GITHUB_STEP_SUMMARY
-          echo "|----------|--------|-----------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Android | $ANDROID_STATUS | APK |" >> $GITHUB_STEP_SUMMARY
-          echo "| iOS | $IOS_STATUS | .app |" >> $GITHUB_STEP_SUMMARY
-          echo "| Linux | $LINUX_STATUS | tar.gz |" >> $GITHUB_STEP_SUMMARY
-          echo "| Windows | $WINDOWS_STATUS | EXE/DLLs |" >> $GITHUB_STEP_SUMMARY
-          echo "| Web | $WEB_STATUS | HTML/JS |" >> $GITHUB_STEP_SUMMARY
-          
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "## Available Artifacts" >> $GITHUB_STEP_SUMMARY
-          
-          if [ -d "artifacts" ] && [ "$(ls -A artifacts)" ]; then
-            echo "✅ Artifacts downloaded successfully:" >> $GITHUB_STEP_SUMMARY
-            ls -la artifacts/ >> $GITHUB_STEP_SUMMARY
-          else
-            echo "⚠️ No artifacts were created or all builds failed" >> $GITHUB_STEP_SUMMARY
-          fi
-          
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "## GitHub Run Link" >> $GITHUB_STEP_SUMMARY
-          echo "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> $GITHUB_STEP_SUMMARY
-          
+          # Создаем summary
+          {
+            echo "# Build Complete"
+            echo ""
+            echo "## Repository Information"
+            echo "- Repository: ${{ needs.prepare.outputs.repository }}"
+            echo "- Branch: ${{ needs.prepare.outputs.branch }}"
+            echo "- Build Name: ${{ github.event.inputs.build_name }}"
+            echo "- Build Number: ${{ github.event.inputs.build_number }}"
+            echo "- Overall Status: $OVERALL_STATUS"
+            echo "- Cache Key: ${{ needs.prepare.outputs.cache_key }}"
+            echo ""
+            echo "## Build Status"
+            echo ""
+            echo "| Platform | Status | Artifacts |"
+            echo "|----------|--------|-----------|"
+            echo "| Android | $ANDROID_STATUS | [Download](#) |"
+            echo "| iOS | $IOS_STATUS | [Download](#) |"
+            echo "| Linux | $LINUX_STATUS | [Download](#) |"
+            echo "| Windows | $WINDOWS_STATUS | [Download](#) |"
+            echo "| Web | $WEB_STATUS | [Download](#) |"
+            echo ""
+            echo "## Available Artifacts"
+            echo ""
+            if [ -d "artifacts" ] && [ "$(ls -A artifacts)" ]; then
+              echo "✅ Artifacts created:" >> $GITHUB_STEP_SUMMARY
+              ls -la artifacts/ >> $GITHUB_STEP_SUMMARY
+            else
+              echo "⚠️ No artifacts were created"
+            fi
+          } >> $GITHUB_STEP_SUMMARY
+      
       - name: Send Telegram notification
         uses: appleboy/telegram-action@master
         with:
           token: ${{ secrets.tgTOKEN }}
           to: ${{ secrets.tgTO }}
           message: |
-            🚀 Flutter Build Report
-            Репозиторий: ${{ needs.prepare.outputs.repository }}
-            Ветка: ${{ needs.prepare.outputs.branch }}
-            Версия: ${{ github.event.inputs.build_name }} (build ${{ github.event.inputs.build_number }})
+            🚀 **Flutter Build Report**
             
-            Статусы:
+            📦 Репозиторий: ${{ needs.prepare.outputs.repository }}
+            🌿 Ветка: ${{ needs.prepare.outputs.branch }}
+            🏷️ Версия: ${{ github.event.inputs.build_name }} (build ${{ github.event.inputs.build_number }})
+            🔑 Cache Key: ${{ needs.prepare.outputs.cache_key }}
+            
+            **Статусы сборки:**
             🤖 Android: ${{ needs.build-android.result }}
             🍎 iOS: ${{ needs.build-ios.result }}
             🐧 Linux: ${{ needs.build-linux.result }}
             🪟 Windows: ${{ needs.build-windows.result }}
             🌐 Web: ${{ needs.build-web.result }}
             
-            🔗 Ссылка: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            🔗 [Ссылка на сборку](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
