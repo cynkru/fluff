@@ -47,6 +47,10 @@ class SettingsView extends StatelessWidget {
                     Matrix.of(context).client.userID ?? L10n.of(context).user;
                 final displayname =
                     profile?.displayName ?? mxid.localpart ?? mxid;
+                
+                // Извлекаем только локальную часть (без :matrix.cynk.ru)
+                final usernameOnly = mxid.localpart ?? mxid.toString().split(':').first;
+                
                 return Row(
                   children: [
                     Padding(
@@ -105,10 +109,9 @@ class SettingsView extends StatelessWidget {
                               iconColor: theme.colorScheme.secondary,
                             ),
                             label: Text(
-                              mxid,
+                              usernameOnly, // Используем только username без домена
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              //    style: const TextStyle(fontSize: 12),
                             ),
                           ),
                         ],

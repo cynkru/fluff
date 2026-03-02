@@ -1,14 +1,10 @@
 import 'package:flutter/material.dart';
 
-import 'package:url_launcher/url_launcher_string.dart';
-
 import 'package:fluffychat/config/app_config.dart';
 import 'package:fluffychat/config/themes.dart';
 import 'package:fluffychat/l10n/l10n.dart';
 import 'package:fluffychat/pages/sign_in/view_model/flows/check_homeserver.dart';
-import 'package:fluffychat/pages/sign_in/view_model/model/public_homeserver_data.dart';
 import 'package:fluffychat/pages/sign_in/view_model/sign_in_view_model.dart';
-import 'package:fluffychat/utils/localized_exception_extension.dart';
 import 'package:fluffychat/widgets/layouts/login_scaffold.dart';
 import 'package:fluffychat/widgets/matrix.dart';
 import 'package:fluffychat/widgets/view_model_builder.dart';
@@ -24,8 +20,31 @@ class SignInPage extends StatelessWidget {
       create: () => SignInViewModel(Matrix.of(context), signUp: signUp),
       builder: (context, viewModel, _) {
         final state = viewModel.value;
-        final publicHomeservers = state.filteredPublicHomeservers;
-        final selectedHomserver = state.selectedHomeserver;
+        
+        // Сразу запускаем подключение к matrix.cynk.ru при загрузке страницы
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!state.isLoading) {
+            viewModel.setLoading(true);
+            // Используем существующий метод checkHomeserver
+            viewModel.checkHomeserver(
+              'matrix.cynk.ru',
+              onSuccess: () {
+                if (signUp) {
+                  Navigator.of(context).pushNamed('/register');
+                } else {
+                  Navigator.of(context).pushNamed('/login');
+                }
+              },
+              onError: (error) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(error.toString())),
+                );
+                viewModel.setLoading(false);
+              },
+            );
+          }
+        });
+
         return LoginScaffold(
           appBar: AppBar(
             backgroundColor: theme.colorScheme.surface,
@@ -37,176 +56,19 @@ class SignInPage extends StatelessWidget {
                   ? L10n.of(context).createNewAccount
                   : L10n.of(context).login,
             ),
-            bottom: PreferredSize(
-              preferredSize: const Size.fromHeight(56 + 60),
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  mainAxisSize: .min,
-                  crossAxisAlignment: .center,
-                  spacing: 12,
-                  children: [
-                    SelectableText(
-                      signUp
-                          ? L10n.of(context).signUpGreeting
-                          : L10n.of(context).signInGreeting,
-                      textAlign: .center,
-                    ),
-                    TextField(
-                      readOnly:
-                          state.publicHomeservers.connectionState ==
-                          ConnectionState.waiting,
-                      controller: viewModel.filterTextController,
-                      decoration: InputDecoration(
-                        filled: true,
-                        fillColor: theme.colorScheme.secondaryContainer,
-                        border: OutlineInputBorder(
-                          borderSide: BorderSide.none,
-                          borderRadius: BorderRadius.circular(99),
-                        ),
-                        errorText: state.publicHomeservers.error
-                            ?.toLocalizedString(context),
-                        prefixIcon: const Icon(Icons.search_outlined),
-                        hintText: 'Search or enter homeserver address',
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
           ),
-          body: state.publicHomeservers.connectionState == ConnectionState.done
-              ? Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  child: Material(
-                    borderRadius: BorderRadius.circular(AppConfig.borderRadius),
-                    clipBehavior: Clip.hardEdge,
-                    color: theme.colorScheme.surfaceContainerLow,
-                    child: RadioGroup<PublicHomeserverData>(
-                      groupValue: state.selectedHomeserver,
-                      onChanged: viewModel.selectHomeserver,
-                      child: ListView.builder(
-                        itemCount: publicHomeservers.length,
-                        itemBuilder: (context, i) {
-                          final server = publicHomeservers[i];
-                          return RadioListTile.adaptive(
-                            value: server,
-                            radioScaleFactor: 2,
-                            secondary: IconButton(
-                              icon: const Icon(Icons.link_outlined),
-                              onPressed: () => launchUrlString(
-                                server.homepage ?? 'https://${server.name}',
-                              ),
-                            ),
-                            title: Row(
-                              spacing: 4,
-                              children: [
-                                Expanded(child: Text(server.name ?? 'Unknown')),
-                                ...?server.languages?.map(
-                                  (language) => Material(
-                                    borderRadius: BorderRadius.circular(
-                                      AppConfig.borderRadius,
-                                    ),
-                                    color: theme.colorScheme.tertiaryContainer,
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 6.0,
-                                        vertical: 3.0,
-                                      ),
-                                      child: Text(
-                                        language,
-                                        style: TextStyle(
-                                          fontSize: 10,
-                                          color: theme
-                                              .colorScheme
-                                              .onTertiaryContainer,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            subtitle: Column(
-                              spacing: 4.0,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                if (server.features?.isNotEmpty == true)
-                                  Row(
-                                    spacing: 4.0,
-                                    children: server.features!
-                                        .map(
-                                          (feature) => Material(
-                                            borderRadius: BorderRadius.circular(
-                                              AppConfig.borderRadius,
-                                            ),
-                                            color: theme
-                                                .colorScheme
-                                                .secondaryContainer,
-                                            child: Padding(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                    horizontal: 6.0,
-                                                    vertical: 3.0,
-                                                  ),
-                                              child: Text(
-                                                feature,
-                                                style: TextStyle(
-                                                  fontSize: 10,
-                                                  color: theme
-                                                      .colorScheme
-                                                      .onSecondaryContainer,
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                        )
-                                        .toList(),
-                                  ),
-                                Text(
-                                  server.description ?? 'A matrix homeserver',
-                                ),
-                              ],
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  ),
-                )
-              : Center(child: CircularProgressIndicator.adaptive()),
-          bottomNavigationBar: AnimatedSize(
-            duration: FluffyThemes.animationDuration,
-            curve: FluffyThemes.animationCurve,
-            child:
-                selectedHomserver == null ||
-                    !publicHomeservers.contains(selectedHomserver)
-                ? const SizedBox.shrink()
-                : Material(
-                    elevation: 8,
-                    shadowColor: theme.appBarTheme.shadowColor,
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: ElevatedButton(
-                        onPressed:
-                            state.loginLoading.connectionState ==
-                                ConnectionState.waiting
-                            ? null
-                            : () => connectToHomeserverFlow(
-                                selectedHomserver,
-                                context,
-                                viewModel.setLoginLoading,
-                                signUp,
-                              ),
-                        child:
-                            state.loginLoading.connectionState ==
-                                ConnectionState.waiting
-                            ? const CircularProgressIndicator.adaptive()
-                            : Text(L10n.of(context).continueText),
-                      ),
-                    ),
-                  ),
+          body: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  'Connecting to matrix.cynk.ru...',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 24),
+                const CircularProgressIndicator.adaptive(),
+              ],
+            ),
           ),
         );
       },

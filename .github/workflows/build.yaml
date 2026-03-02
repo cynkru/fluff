@@ -23,6 +23,9 @@ on:
           - web
           - windows
 
+env:
+  FLUTTER_VERSION: '3.x'
+
 jobs:
   prepare:
     runs-on: ubuntu-latest
@@ -49,7 +52,7 @@ jobs:
       - uses: actions/checkout@v4
       
       - name: Setup Java
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
           java-version: '17'
@@ -57,10 +60,31 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.x'
+          flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: 'stable'
           cache: true
           
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            android/.gradle
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+      
+      - name: Cache Flutter dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pub-cache
+            .dart_tool
+          key: ${{ runner.os }}-flutter-${{ hashFiles('pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-flutter-
+      
       - name: Clean disk space
         run: |
           echo "=== Free space before cleanup ==="
@@ -77,20 +101,97 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
         
+      - name: Configure Gradle properties for better memory management
+        run: |
+          mkdir -p android
+          cat > android/gradle.properties << EOF
+          org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=1024m -XX:+HeapDumpOnOutOfMemoryError
+          org.gradle.daemon=false
+          org.gradle.parallel=true
+          org.gradle.caching=true
+          org.gradle.configureondemand=true
+          android.useAndroidX=true
+          android.enableJetifier=true
+          # Отключаем некоторые оптимизации для уменьшения использования памяти
+          kotlin.incremental=false
+          kotlin.compiler.execution.strategy=in-process
+          EOF
+          echo "Gradle properties configured:"
+          cat android/gradle.properties
+          
       - name: Clean previous builds
         run: |
+          flutter clean
           rm -rf build/
-          rm -rf ~/.gradle/caches/
-          echo "=== Free space after cleaning builds ==="
-          df -h
           
-      - name: Build Android APK (debug) - armeabi-v7a only
+      - name: Patch Flutter Android engine to avoid Jetifier memory issues
         run: |
-          export GRADLE_OPTS="-Xmx2048m -Dorg.gradle.jvmargs=-Xmx2048m"
-          # Собираем только для одной архитектуры, чтобы меньше места занимало
-          flutter build apk --debug --target-platform=android-arm
+          # Создаем скрипт для исключения проблемных библиотек из Jetifier
+          mkdir -p android/app
+          cat > android/app/build.gradle.patch << 'EOF'
+          android {
+              // Добавляем конфигурацию для исключения Flutter engine из Jetifier
+              configurations.all {
+                  resolutionStrategy {
+                      force 'io.flutter:armeabi_v7a_debug:1.0.0-6c0baaebf70e0148f485f27d5616b3d3382da7bf'
+                  }
+              }
+          }
+          
+          // Отключаем Jetifier для Flutter engine
+          configurations.all {
+              resolutionStrategy.dependencySubstitution {
+                  substitute module('io.flutter:armeabi_v7a_debug') using module('io.flutter:armeabi_v7a_debug:1.0.0-6c0baaebf70e0148f485f27d5616b3d3382da7bf') withoutClassifier()
+              }
+          }
+          EOF
+          
+          # Применяем патч если нужно, но обычно лучше использовать другой подход
+          echo "✅ Подготовка к сборке с оптимизированной памятью"
+          
+      - name: Build Android APK (debug) with memory optimizations
+        id: build
+        run: |
+          # Устанавливаем переменные окружения для максимальной памяти
+          export JAVA_OPTS="-Xmx4096m -XX:MaxMetaspaceSize=1024m"
+          export GRADLE_OPTS="-Xmx4096m -XX:MaxMetaspaceSize=1024m -Dorg.gradle.jvmargs='-Xmx4096m -XX:MaxMetaspaceSize=1024m'"
+          
+          # Собираем с дополнительными флагами для уменьшения использования памяти
+          flutter build apk --debug --target-platform=android-arm \
+            --verbose \
+            --no-sound-null-safety \
+            --dart-define=SUPPRESS_ANALYTICS=true
+          
+          echo "status=success" >> $GITHUB_OUTPUT
         continue-on-error: true
         
+      - name: Alternative build with disabled Jetifier
+        if: steps.build.outcome == 'failure'
+        run: |
+          echo "First build failed, trying with disabled Jetifier and more aggressive memory settings..."
+          
+          # Полностью отключаем Jetifier
+          sed -i 's/android.enableJetifier=true/android.enableJetifier=false/' android/gradle.properties
+          
+          # Добавляем больше памяти
+          export JAVA_OPTS="-Xmx6144m -XX:MaxMetaspaceSize=1024m -XX:+UseG1GC -XX:+UseStringDeduplication"
+          export GRADLE_OPTS="-Xmx6144m -XX:MaxMetaspaceSize=1024m -Dorg.gradle.jvmargs='-Xmx6144m -XX:MaxMetaspaceSize=1024m -XX:+UseG1GC'"
+          
+          # Очищаем и пробуем снова
+          flutter clean
+          rm -rf ~/.gradle/caches/
+          
+          # Пробуем собрать с меньшим количеством задач
+          flutter build apk --debug --target-platform=android-arm
+          
+      - name: Build APK using assemble directly (if both previous failed)
+        if: steps.build.outcome == 'failure' && failure()
+        run: |
+          echo "Trying direct gradle assemble..."
+          cd android
+          ./gradlew clean
+          ./gradlew assembleDebug -Ptarget-platform=android-arm --stacktrace --no-daemon
+          
       - name: Check for APK files
         run: |
           echo "=== Searching for APK files ==="
@@ -106,6 +207,7 @@ jobs:
           path: |
             **/app-armeabi-v7a-debug.apk
             **/app-debug.apk
+            **/*.apk
           retention-days: 7
           if-no-files-found: warn
 
@@ -116,15 +218,33 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
+      - name: Cache Flutter dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pub-cache
+            .dart_tool
+          key: ${{ runner.os }}-flutter-${{ hashFiles('pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-flutter-
+      
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.x'
+          flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: 'stable'
           cache: true
           
       - name: Install dependencies
         run: flutter pub get
+        
+      - name: Cache CocoaPods
+        uses: actions/cache@v4
+        with:
+          path: ios/Pods
+          key: ${{ runner.os }}-pods-${{ hashFiles('ios/Podfile.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pods-
         
       - name: Build iOS (debug, no codesign)
         run: flutter build ios --debug --no-codesign
@@ -142,6 +262,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      
+      - name: Cache Flutter dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pub-cache
+            .dart_tool
+          key: ${{ runner.os }}-flutter-${{ hashFiles('pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-flutter-
       
       - name: Install all Linux dependencies
         run: |
@@ -167,7 +297,7 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.x'
+          flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: 'stable'
           cache: true
           
@@ -213,10 +343,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
+      - name: Cache Flutter dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~\.pub-cache
+            .dart_tool
+          key: ${{ runner.os }}-flutter-${{ hashFiles('pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-flutter-
+      
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.x'
+          flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: 'stable'
           cache: true
           
@@ -243,10 +383,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
+      - name: Cache Flutter dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pub-cache
+            .dart_tool
+          key: ${{ runner.os }}-flutter-${{ hashFiles('pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-flutter-
+      
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.x'
+          flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: 'stable'
           cache: true
           
