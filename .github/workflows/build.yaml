@@ -77,20 +77,58 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
         
+      - name: Configure Gradle properties
+        run: |
+          mkdir -p android
+          cat > android/gradle.properties << EOF
+          org.gradle.jvmargs=-Xmx2048m -XX:MaxMetaspaceSize=512m
+          org.gradle.daemon=false
+          org.gradle.parallel=true
+          org.gradle.caching=false
+          android.useAndroidX=true
+          android.enableJetifier=true
+          EOF
+          echo "Gradle properties configured:"
+          cat android/gradle.properties
+          
       - name: Clean previous builds
         run: |
-          rm -rf build/
+          flutter clean
           rm -rf ~/.gradle/caches/
+          rm -rf build/
           echo "=== Free space after cleaning builds ==="
           df -h
           
       - name: Build Android APK (debug) - armeabi-v7a only
+        id: build
         run: |
+          # Устанавливаем переменные окружения для памяти
+          export JAVA_OPTS="-Xmx2048m"
           export GRADLE_OPTS="-Xmx2048m -Dorg.gradle.jvmargs=-Xmx2048m"
-          # Собираем только для одной архитектуры, чтобы меньше места занимало
+          
+          # Пробуем собрать с увеличенной памятью
           flutter build apk --debug --target-platform=android-arm
+          
+          # Если дошли до сюда - сборка успешна
+          echo "status=success" >> $GITHUB_OUTPUT
         continue-on-error: true
         
+      - name: Alternative build with more memory
+        if: steps.build.outcome == 'failure'
+        run: |
+          echo "First build failed, trying with more memory..."
+          
+          # Увеличиваем память еще больше
+          export JAVA_OPTS="-Xmx4096m"
+          export GRADLE_OPTS="-Xmx4096m -Dorg.gradle.jvmargs=-Xmx4096m"
+          
+          # Пробуем отключить jetifier
+          sed -i 's/android.enableJetifier=true/android.enableJetifier=false/' android/gradle.properties
+          
+          # Пробуем собрать снова
+          flutter clean
+          flutter build apk --debug --target-platform=android-arm --verbose
+          
       - name: Check for APK files
         run: |
           echo "=== Searching for APK files ==="
@@ -106,6 +144,7 @@ jobs:
           path: |
             **/app-armeabi-v7a-debug.apk
             **/app-debug.apk
+            **/*.apk
           retention-days: 7
           if-no-files-found: warn
 
