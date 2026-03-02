@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:fluffychat/config/app_config.dart';
 import 'package:fluffychat/config/themes.dart';
 import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/pages/sign_in/view_model/flows/connect_to_homeserver_flow.dart';
+import 'package:fluffychat/pages/sign_in/view_model/flows/check_homeserver.dart';
 import 'package:fluffychat/pages/sign_in/view_model/sign_in_view_model.dart';
 import 'package:fluffychat/widgets/layouts/login_scaffold.dart';
 import 'package:fluffychat/widgets/matrix.dart';
@@ -23,13 +23,24 @@ class SignInPage extends StatelessWidget {
         
         // Сразу запускаем подключение к matrix.cynk.ru при загрузке страницы
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (state.loginLoading.connectionState != ConnectionState.waiting) {
-            viewModel.setLoginLoading(ConnectionState.waiting);
-            connectToHomeserverFlow(
+          if (!state.isLoading) {
+            viewModel.setLoading(true);
+            // Используем существующий метод checkHomeserver
+            viewModel.checkHomeserver(
               'matrix.cynk.ru',
-              context,
-              viewModel.setLoginLoading,
-              signUp,
+              onSuccess: () {
+                if (signUp) {
+                  Navigator.of(context).pushNamed('/register');
+                } else {
+                  Navigator.of(context).pushNamed('/login');
+                }
+              },
+              onError: (error) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(error.toString())),
+                );
+                viewModel.setLoading(false);
+              },
             );
           }
         });
