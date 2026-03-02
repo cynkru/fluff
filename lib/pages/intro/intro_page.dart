@@ -28,10 +28,10 @@ class IntroPage extends StatelessWidget {
         title: Text(
           addMultiAccount
               ? L10n.of(context).addAccount
-              : L10n.of(context).login,
+              : "Cynk"
         ),
         actions: [
-          PopupMenuButton(
+          /*PopupMenuButton(
             useRootNavigator: true,
             itemBuilder: (_) => [
               PopupMenuItem(
@@ -68,7 +68,7 @@ class IntroPage extends StatelessWidget {
                 ),
               ),
             ],
-          ),
+          ),*/
         ],
       ),
       body: LayoutBuilder(
@@ -79,7 +79,7 @@ class IntroPage extends StatelessWidget {
               child: IntrinsicHeight(
                 child: Column(
                   children: [
-                    Container(
+                    /* Container(
                       alignment: Alignment.center,
                       padding: const EdgeInsets.symmetric(horizontal: 8.0),
                       child: Hero(
@@ -89,12 +89,12 @@ class IntroPage extends StatelessWidget {
                           fit: BoxFit.fitWidth,
                         ),
                       ),
-                    ),
+                    ),*/
                     const SizedBox(height: 32),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 32.0),
                       child: SelectableLinkify(
-                        text: L10n.of(context).appIntro,
+                        text: "👋 Привет! Это защищённый мессенджер на базе Matrix", //L10n.of(context).appIntro
                         textScaleFactor: MediaQuery.textScalerOf(
                           context,
                         ).scale(1),
@@ -114,34 +114,12 @@ class IntroPage extends StatelessWidget {
                         crossAxisAlignment: .stretch,
                         children: [
                           ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: theme.colorScheme.secondary,
-                              foregroundColor: theme.colorScheme.onSecondary,
-                            ),
                             onPressed: () => context.go(
-                              '${GoRouterState.of(context).uri.path}/sign_up',
+                              '${GoRouterState.of(context).uri.path}/login',
                             ),
-                            child: Text(L10n.of(context).createNewAccount),
+                            child: Text("Войти"),
                           ),
-                          SizedBox(height: 16),
-                          ElevatedButton(
-                            onPressed: () => context.go(
-                              '${GoRouterState.of(context).uri.path}/sign_in',
-                            ),
-                            child: Text(L10n.of(context).signIn),
-                          ),
-                          TextButton(
-                            onPressed: () async {
-                              final client = await Matrix.of(
-                                context,
-                              ).getLoginClient();
-                              context.go(
-                                '${GoRouterState.of(context).uri.path}/login',
-                                extra: client,
-                              );
-                            },
-                            child: Text(L10n.of(context).loginWithMatrixId),
-                          ),
+                          
                         ],
                       ),
                     ),
