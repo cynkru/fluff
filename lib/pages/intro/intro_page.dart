@@ -94,7 +94,7 @@ class IntroPage extends StatelessWidget {
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 32.0),
                       child: SelectableLinkify(
-                        text: "👋 Привет! Это защищённый мессенджер на базе Matrix", //L10n.of(context).appIntro
+                        text: "👋 Привет! Это защищённый мессенджер на базе Matrix",
                         textScaleFactor: MediaQuery.textScalerOf(
                           context,
                         ).scale(1),
@@ -110,16 +110,43 @@ class IntroPage extends StatelessWidget {
                     Padding(
                       padding: const EdgeInsets.all(32.0),
                       child: Column(
-                        mainAxisSize: .min,
-                        crossAxisAlignment: .stretch,
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           ElevatedButton(
-                            onPressed: () => context.go(
-                              '${GoRouterState.of(context).uri.path}/login',
-                            ),
+                            onPressed: () async {
+                              final matrix = Matrix.of(context);
+                              final client = await matrix.getLoginClient();
+                              
+                              // Если клиент не получен, создаем новый
+                              if (client == null) {
+                                // Создаем клиент вручную
+                                final newClient = Client('FluffyChat');
+                                newClient.homeserver = Uri.parse('https://matrix.cynk.ru');
+                                
+                                if (context.mounted) {
+                                  context.go(
+                                    '${GoRouterState.of(context).uri.path}/login',
+                                    extra: newClient,
+                                  );
+                                }
+                                return;
+                              }
+                              
+                              // Убедимся что homeserver установлен
+                              if (client.homeserver == null) {
+                                client.homeserver = Uri.parse('https://matrix.cynk.ru');
+                              }
+                              
+                              if (context.mounted) {
+                                context.go(
+                                  '${GoRouterState.of(context).uri.path}/login',
+                                  extra: client,
+                                );
+                              }
+                            },
                             child: Text("Войти"),
                           ),
-                          
                         ],
                       ),
                     ),
