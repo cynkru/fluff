@@ -16,7 +16,7 @@ class LoginView extends StatelessWidget {
     final homeserver = controller.widget.client.homeserver
         ?.toString()
         .replaceFirst('https://', '');
-    final title = "Вход"
+    final title = "Вход";
 
     return LoginScaffold(
       appBar: AppBar(
