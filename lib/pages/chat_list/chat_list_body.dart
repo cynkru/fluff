@@ -64,7 +64,9 @@ class ChatListViewBody extends StatelessWidget {
           .where((s) => s.hasRoomUpdate)
           .rateLimit(const Duration(seconds: 1)),
       builder: (context, _) {
-        final rooms = controller.filteredRooms;
+        final rooms = controller.filteredRooms.where((room) => 
+  !room.isSpace && !spaceDelegateCandidates.containsKey(room.id)
+).toList();
 
         return SafeArea(
           child: CustomScrollView(

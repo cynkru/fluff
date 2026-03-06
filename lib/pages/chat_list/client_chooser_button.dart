@@ -69,7 +69,7 @@ class ClientChooserButton extends StatelessWidget {
           ],
         ),
       ),
-      if (Matrix.of(context).backgroundPush?.firebaseEnabled != true)
+      /*if (Matrix.of(context).backgroundPush?.firebaseEnabled != true)
         PopupMenuItem(
           value: SettingsAction.support,
           child: Row(
@@ -79,7 +79,7 @@ class ClientChooserButton extends StatelessWidget {
               Text(L10n.of(context).donate),
             ],
           ),
-        ),
+        ),*/
       PopupMenuItem(
         value: SettingsAction.settings,
         child: Row(

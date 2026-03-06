@@ -12,8 +12,8 @@ abstract class AppConfig {
   static const bool enableRegistration = true;
   static const bool hideTypingUsernames = false;
 
-  static const String inviteLinkPrefix = 'https://matrix.to/#/';
-  static const String deepLinkPrefix = 'im.fluffychat://chat/';
+  static const String inviteLinkPrefix = 'https://matrix.cynk.ru/#/';
+  static const String deepLinkPrefix = 'cynk://chat/';
   static const String schemePrefix = 'matrix:';
   static const String pushNotificationsChannelId = 'fluffychat_push';
   static const String pushNotificationsAppId = 'chat.fluffy.fluffychat';
@@ -21,7 +21,7 @@ abstract class AppConfig {
   static const double spaceBorderRadius = 11.0;
   static const double columnWidth = 360.0;
 
-  static const String website = 'https://fluffy.chat';
+  static const String website = 'https://cynk.ru';
   static const String enablePushTutorial =
       'https://fluffy.chat/faq/#push_without_google_services';
   static const String encryptionTutorial =
@@ -31,21 +31,21 @@ abstract class AppConfig {
   static const String howDoIGetStickersTutorial =
       'https://fluffy.chat/faq/#how_do_i_get_stickers';
   static const String appId = 'im.fluffychat.FluffyChat';
-  static const String appOpenUrlScheme = 'im.fluffychat';
+  static const String appOpenUrlScheme = 'cynk';
 
   static const String sourceCodeUrl =
       'https://github.com/krille-chan/fluffychat';
   static const String supportUrl =
-      'https://github.com/krille-chan/fluffychat/issues';
-  static const String changelogUrl = 'https://fluffy.chat/en/changelog/';
-  static const String donationUrl = 'https://ko-fi.com/krille';
+      'https://support.cynk.ru';
+  static const String changelogUrl = 'https://changelog.cynk.ru';
+  static const String donationUrl = 'https://donation.cynk.ru';
 
   static const Set<String> defaultReactions = {'👍', '❤️', '😂', '😮', '😢'};
 
   static final Uri newIssueUrl = Uri(
     scheme: 'https',
-    host: 'github.com',
-    path: '/krille-chan/fluffychat/issues/new',
+    host: 'support.cynk.ru',
+    path: '/new',
   );
 
   static final Uri homeserverList = Uri(

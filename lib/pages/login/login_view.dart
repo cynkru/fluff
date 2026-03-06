@@ -16,9 +16,7 @@ class LoginView extends StatelessWidget {
     final homeserver = controller.widget.client.homeserver
         ?.toString()
         .replaceFirst('https://', '');
-    final title = homeserver == null
-        ? L10n.of(context).loginWithMatrixId
-        : L10n.of(context).logInTo(homeserver);
+    final title = "Вход"
 
     return LoginScaffold(
       appBar: AppBar(
@@ -33,10 +31,10 @@ class LoginView extends StatelessWidget {
             child: ListView(
               padding: const EdgeInsets.symmetric(horizontal: 8),
               children: <Widget>[
-                Hero(
+                /*Hero(
                   tag: 'info-logo',
                   child: Image.asset('assets/banner_transparent.png'),
-                ),
+                ),*/
                 const SizedBox(height: 16),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24.0),
