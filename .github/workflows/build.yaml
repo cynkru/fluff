@@ -136,7 +136,7 @@ jobs:
         run: |
           flutter build apk --debug \
             --target-platform=android-arm64 \
-            --no-sound-null-safety \
+
             --dart-define=SUPPRESS_ANALYTICS=true
       
       # Если упало - пробуем прямой gradle
