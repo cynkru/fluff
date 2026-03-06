@@ -79,211 +79,78 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: 'stable'
           cache: true
-          cache-key: ${{ needs.prepare.outputs.cache_key }} # Используем общий ключ
+          cache-key: ${{ needs.prepare.outputs.cache_key }}
       
-      # Улучшенное кеширование Gradle
+      # Минимальное кеширование - только самое нужное
       - name: Cache Gradle
         uses: actions/cache@v4
         with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-            !~/.gradle/caches/build-cache-* # Исключаем кеш сборки для избежания конфликтов
-            android/.gradle
-            android/app/build
-            android/.idea
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties', 'android/app/build.gradle') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-
+          path: ~/.gradle/caches
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: ${{ runner.os }}-gradle-
       
-      # Кеширование Flutter dependencies с приоритетом
       - name: Cache Flutter dependencies
         uses: actions/cache@v4
         with:
-          path: |
-            ~/.pub-cache
-            .dart_tool
-            .flutter-plugins
-            .flutter-plugins-dependencies
+          path: ~/.pub-cache
           key: ${{ needs.prepare.outputs.cache_key }}
-          restore-keys: |
-            ${{ runner.os }}-flutter-
+          restore-keys: ${{ runner.os }}-flutter-
       
-      # Кеширование build artifacts для ускорения последующих сборок
-      - name: Cache build artifacts
-        uses: actions/cache@v4
-        with:
-          path: |
-            build/app/intermediates
-            build/app/outputs
-            .gradle
-          key: ${{ runner.os }}-build-${{ github.run_id }}
-          restore-keys: |
-            ${{ runner.os }}-build-
-      
-      - name: Clean disk space
+      # Чистим диск
+      - name: Free disk space
         run: |
-          echo "=== Free space before cleanup ==="
-          df -h
-          sudo apt-get clean
           sudo rm -rf /usr/share/dotnet
           sudo rm -rf /opt/ghc
-          sudo rm -rf /usr/local/share/boost
-          sudo rm -rf /opt/hostedtoolcache/CodeQL
           docker rmi $(docker image ls -q) 2>/dev/null || true
-          echo "=== Free space after cleanup ==="
-          df -h
-          
+      
       - name: Install dependencies
         run: flutter pub get
       
-      # Создаем оптимизированный gradle.properties
-      - name: Configure Gradle properties
+      # Конфигурируем Gradle для стабильной работы
+      - name: Configure Gradle
         run: |
-          mkdir -p android
-          cat > android/gradle.properties << EOF
-          # Memory settings
-          org.gradle.jvmargs=-Xmx6g -Xms4g -XX:MaxMetaspaceSize=1g -XX:+HeapDumpOnOutOfMemoryError -XX:+UseParallelGC -XX:ParallelGCThreads=4
-          
-          # Performance settings
+          mkdir -p ~/.gradle
+          cat > ~/.gradle/gradle.properties << EOF
+          org.gradle.jvmargs=-Xmx4608m -XX:MaxMetaspaceSize=512m -XX:+HeapDumpOnOutOfMemoryError
           org.gradle.daemon=false
           org.gradle.parallel=true
-          org.gradle.caching=true
-          org.gradle.configureondemand=true
-          org.gradle.workers.max=4
-          
-          # Android settings
+          org.gradle.workers.max=2
           android.useAndroidX=true
-          android.enableJetifier=true
-          
-          # Disable Kotlin incremental compilation for better memory usage
-          kotlin.incremental=false
-          kotlin.compiler.execution.strategy=in-process
-          
-          # Disable some tasks for faster builds
-          android.defaults.buildfeatures.buildconfig=true
-          android.defaults.buildfeatures.aidl=false
-          android.defaults.buildfeatures.renderscript=false
-          android.defaults.buildfeatures.resvalues=false
-          android.defaults.buildfeatures.shaders=false
-          
-          # Memory optimization for Jetifier
-          android.jetifier.ignorelist=armeabi_v7a_debug,armeabi_v7a_profile,armeabi_v7a_release,x86_64_debug,x86_64_profile,x86_64_release
+          android.enableJetifier=false
+          kotlin.daemon.jvm.args=-Xmx1536m
           EOF
           
-          echo "Gradle properties configured:"
-          cat android/gradle.properties
+          # Для проекта
+          mkdir -p android
+          cp ~/.gradle/gradle.properties android/gradle.properties 2>/dev/null || true
       
-      # Создаем settings.gradle с оптимизациями
-      - name: Optimize Gradle settings
+      # Бьем Jetifier кеш на всякий случай
+      - name: Clear Jetifier cache
         run: |
-          cat >> android/settings.gradle << EOF
-          
-          // Оптимизация для больших проектов
-          gradle.projectsLoaded {
-              gradle.settingsEvaluated {
-                  gradle.rootProject {
-                      buildCache {
-                          local {
-                              enabled = true
-                              removeUnusedEntriesAfterDays = 30
-                          }
-                      }
-                  }
-              }
-          }
-          EOF
+          rm -rf ~/.gradle/caches/transforms-*
+          rm -rf ~/.gradle/caches/jetifier-*
+          rm -rf ~/.gradle/caches/build-cache-*
       
-      - name: Clean previous builds (optional, only if needed)
+      # Сборка только для arm64 (меньше памяти)
+      - name: Build Android APK
         run: |
-          # Не всегда нужно чистить, это замедляет сборку
-          if [ "${{ github.event.inputs.clean_build }}" == "true" ]; then
-            flutter clean
-            rm -rf build/
-          else
-            echo "Using cached build files"
-          fi
-        continue-on-error: true
-      
-      # Отключаем Jetifier для проблемных модулей через gradle.properties
-      - name: Create gradle.properties with Jetifier exclusions
-        run: |
-          # Добавляем в gradle.properties исключения для проблемных модулей
-          echo "android.jetifier.blacklist=.*armeabi_v7a_debug.*,.*armeabi_v7a_profile.*,.*armeabi_v7a_release.*" >> android/gradle.properties
-          echo "✅ Jetifier blacklist configured"
-      
-      # Основная сборка с оптимизациями
-      - name: Build Android APK with optimized memory
-        id: build
-        run: |
-          # Собираем с оптимизациями
           flutter build apk --debug \
-            --target-platform=android-arm,android-arm64 \
-            --verbose \
+            --target-platform=android-arm64 \
             --no-sound-null-safety \
             --dart-define=SUPPRESS_ANALYTICS=true
-          
-          echo "status=success" >> $GITHUB_OUTPUT
       
-      # Альтернативная сборка с отключенным Jetifier если первая не удалась
-      - name: Alternative build with disabled Jetifier
-        if: steps.build.outcome == 'failure' || failure()
+      # Если упало - пробуем прямой gradle
+      - name: Fallback to direct Gradle
+        if: failure()
         run: |
-          echo "First build failed, trying with disabled Jetifier..."
-          
-          # Полностью отключаем Jetifier
-          sed -i 's/android.enableJetifier=true/android.enableJetifier=false/' android/gradle.properties
-          
-          # Добавляем больше памяти
-          export JAVA_OPTS="-Xmx7g -Xms5g -XX:MaxMetaspaceSize=1g -XX:+UseG1GC -XX:+UseStringDeduplication -XX:+HeapDumpOnOutOfMemoryError"
-          export GRADLE_OPTS="-Xmx7g -Xms5g -XX:MaxMetaspaceSize=1g"
-          
-          # Чистим кеш Jetifier
-          rm -rf ~/.gradle/caches/transforms-* || true
-          rm -rf ~/.gradle/caches/jetifier-* || true
-          
-          # Пробуем собрать снова
-          flutter build apk --debug --target-platform=android-arm,android-arm64
-      
-      # Прямая сборка через Gradle если Flutter build не работает
-      - name: Direct Gradle build
-        if: steps.build.outcome == 'failure' && failure()
-        run: |
-          echo "Trying direct gradle assemble..."
           cd android
-          
-          # Очищаем кеш Jetifier
-          ./gradlew clean --no-daemon
-          rm -rf ~/.gradle/caches/transforms-* || true
-          
-          # Собираем с явным указанием памяти
+          rm -rf ~/.gradle/caches/transforms-*
+          ./gradlew clean
           ./gradlew assembleDebug \
-            -Ptarget-platform=android-arm,android-arm64 \
-            -Pverbose=true \
-            --stacktrace \
+            -Ptarget-platform=android-arm64 \
+            --max-workers=1 \
             --no-daemon \
-            --max-workers=2 \
-            --parallel \
-            --build-cache
-      
-      # Поиск всех APK файлов
-      - name: Find and organize APK files
-        run: |
-          echo "=== Searching for APK files ==="
-          mkdir -p apk-artifacts
-          
-          # Копируем все найденные APK в одну папку
-          find . -name "*.apk" -type f -exec cp {} apk-artifacts/ \;
-          
-          # Создаем список файлов
-          ls -la apk-artifacts/ > apk-list.txt
-          
-          echo "=== Found APKs ==="
-          cat apk-list.txt
-          
-          # Показываем размеры
-          echo "=== APK sizes ==="
-          du -sh apk-artifacts/* 2>/dev/null || echo "No APKs found"
+            --stacktrace
       
       # Загружаем артефакты
       - name: Upload Android artifacts
@@ -292,25 +159,10 @@ jobs:
         with:
           name: android-build-${{ github.event.inputs.build_name }}-${{ github.event.inputs.build_number }}
           path: |
-            apk-artifacts/
-            **/build/app/outputs/flutter-apk/*.apk
-            **/build/app/outputs/apk/**/*.apk
+            build/app/outputs/flutter-apk/*.apk
+            build/app/outputs/apk/**/*.apk
           retention-days: 7
           if-no-files-found: warn
-      
-      # Сохраняем логи для отладки если сборка упала
-      - name: Upload build logs on failure
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: android-build-logs
-          path: |
-            **/build/app/outputs/flutter-apk/
-            **/build/app/outputs/logs/
-            **/build/app/reports/
-            ~/.gradle/daemon/*/daemon-*.log
-          retention-days: 7
-
   build-ios:
     needs: prepare
     if: ${{ github.event.inputs.platform == 'all' || github.event.inputs.platform == 'ios' }}
