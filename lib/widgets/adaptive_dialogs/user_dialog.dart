@@ -57,7 +57,7 @@ class UserDialog extends StatelessWidget {
     final client = Matrix.of(context).client;
     try {
       final response = await client.httpClient.get(
-        '/_matrix/client/v3/profile/${profile.userId}',
+        Uri.parse('/_matrix/client/v3/profile/${profile.userId}'),
       );
       
       if (response.statusCode == 200) {
@@ -236,9 +236,12 @@ class UserDialog extends StatelessWidget {
                           runSpacing: 6,
                           alignment: WrapAlignment.center,
                           children: badges.map((badge) {
-                            return _buildBadgeChip(
-                              badge,
-                              isSelected: badge.type == selectedBadge,
+                            return Builder(
+                              builder: (context) => _buildBadgeChip(
+                                context,
+                                badge,
+                                isSelected: badge.type == selectedBadge,
+                              ),
                             );
                           }).toList(),
                         ),

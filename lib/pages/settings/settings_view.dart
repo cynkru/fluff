@@ -317,7 +317,7 @@ class SettingsView extends StatelessWidget {
     try {
       // Получаем профиль с бейджами через новый API
       final response = await client.httpClient.get(
-        '/_matrix/client/v3/profile/$userId',
+        Uri.parse('/_matrix/client/v3/profile/$userId'),
       );
       
       if (response.statusCode == 200) {

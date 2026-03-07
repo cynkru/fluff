@@ -19,11 +19,11 @@ class ParticipantListItem extends StatelessWidget {
     final client = Matrix.of(context).client;
     try {
       final response = await client.httpClient.get(
-        '/_matrix/client/v3/profile/${user.id}',
+        'client.httpClient.get(Uri.parse('client.httpClient.get(Uri.parse('/_matrix/client/v3/profile/${user.id}',
       );
       
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as Map<String, dynamic>
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
         return {
           'badges': data['badges'] ?? [],
           'selected_badge': data['selected_badge'],
