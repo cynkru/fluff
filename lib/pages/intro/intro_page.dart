@@ -80,7 +80,7 @@ class IntroPage extends StatelessWidget {
               child: IntrinsicHeight(
                 child: Column(
                   children: [
-                    /* Container(
+                     Container(
                       alignment: Alignment.center,
                       padding: const EdgeInsets.symmetric(horizontal: 8.0),
                       child: Hero(
@@ -90,7 +90,7 @@ class IntroPage extends StatelessWidget {
                           fit: BoxFit.fitWidth,
                         ),
                       ),
-                    ),*/
+                    ),
                     const SizedBox(height: 32),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 32.0),

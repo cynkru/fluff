@@ -12,6 +12,72 @@ class ParticipantListItem extends StatelessWidget {
 
   const ParticipantListItem(this.user, {super.key});
 
+  // Загрузка бейджей пользователя
+  Future<Map<String, dynamic>> _loadUserBadges(BuildContext context) async {
+    final client = Matrix.of(context).client;
+    try {
+      final response = await client.httpClient.get(
+        '/_matrix/client/v3/profile/${user.id}',
+      );
+      
+      if (response.statusCode == 200) {
+        final data = response.data as Map<String, dynamic>;
+        return {
+          'badges': data['badges'] ?? [],
+          'selected_badge': data['selected_badge'],
+        };
+      }
+    } catch (e) {
+      debugPrint('Error loading badges for ${user.id}: $e');
+    }
+    
+    return {'badges': [], 'selected_badge': null};
+  }
+
+  // Иконка бейджа
+  Widget _buildBadgeIcon(String badgeType, {double size = 16}) {
+    return Image.asset(
+      'assets/badges/$badgeType.png',
+      width: size,
+      height: size,
+      errorBuilder: (context, error, stackTrace) {
+        return Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            color: Colors.grey.shade200,
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: Icon(
+            Icons.star,
+            size: size * 0.7,
+            color: Colors.grey.shade600,
+          ),
+        );
+      },
+    );
+  }
+
+  // Пустой бейдж (перечеркнутый круг)
+  Widget _buildEmptyBadgeIcon({double size = 16}) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(color: Colors.grey.shade400, width: 1.5),
+      ),
+      child: Transform.rotate(
+        angle: 0.2,
+        child: const Icon(
+          Icons.close,
+          size: 12,
+          color: Colors.grey,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -30,37 +96,53 @@ class ParticipantListItem extends StatelessWidget {
         ? L10n.of(context).moderator
         : '';
 
-    return ListTile(
-      onTap: () => showMemberActionsPopupMenu(context: context, user: user),
-      title: Row(
-        children: <Widget>[
-          Expanded(
-            child: Text(
-              user.calcDisplayname(),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          if (permissionBatch.isNotEmpty)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: user.powerLevel >= 100
-                    ? theme.colorScheme.tertiary
-                    : theme.colorScheme.tertiaryContainer,
-                borderRadius: BorderRadius.circular(AppConfig.borderRadius),
-              ),
-              child: Text(
-                permissionBatch,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: user.powerLevel >= 100
-                      ? theme.colorScheme.onTertiary
-                      : theme.colorScheme.onTertiaryContainer,
+    return FutureBuilder<Map<String, dynamic>>(
+      future: _loadUserBadges(context),
+      builder: (context, snapshot) {
+        final selectedBadge = snapshot.data?['selected_badge'] as String?;
+        final badges = snapshot.data?['badges'] as List? ?? [];
+
+        return ListTile(
+          onTap: () => showMemberActionsPopupMenu(context: context, user: user),
+          title: Row(
+            children: <Widget>[
+              Expanded(
+                child: Text(
+                  user.calcDisplayname(),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
-            ),
-          membershipBatch == null
-              ? const SizedBox.shrink()
-              : Container(
+              // Бейдж рядом с именем
+              if (selectedBadge != null)
+                Padding(
+                  padding: const EdgeInsets.only(right: 4),
+                  child: _buildBadgeIcon(selectedBadge, size: 16),
+                )
+              else if (badges.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(right: 4),
+                  child: _buildEmptyBadgeIcon(size: 16),
+                ),
+              if (permissionBatch.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: user.powerLevel >= 100
+                        ? theme.colorScheme.tertiary
+                        : theme.colorScheme.tertiaryContainer,
+                    borderRadius: BorderRadius.circular(AppConfig.borderRadius),
+                  ),
+                  child: Text(
+                    permissionBatch,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: user.powerLevel >= 100
+                          ? theme.colorScheme.onTertiary
+                          : theme.colorScheme.onTertiaryContainer,
+                    ),
+                  ),
+                ),
+              if (membershipBatch != null)
+                Container(
                   padding: const EdgeInsets.symmetric(
                     vertical: 4,
                     horizontal: 8,
@@ -79,17 +161,19 @@ class ParticipantListItem extends StatelessWidget {
                     ),
                   ),
                 ),
-        ],
-      ),
-      subtitle: Text(user.id, maxLines: 1, overflow: TextOverflow.ellipsis),
-      leading: Opacity(
-        opacity: user.membership == Membership.join ? 1 : 0.5,
-        child: Avatar(
-          mxContent: user.avatarUrl,
-          name: user.calcDisplayname(),
-          presenceUserId: user.stateKey,
-        ),
-      ),
+            ],
+          ),
+          subtitle: Text(user.id, maxLines: 1, overflow: TextOverflow.ellipsis),
+          leading: Opacity(
+            opacity: user.membership == Membership.join ? 1 : 0.5,
+            child: Avatar(
+              mxContent: user.avatarUrl,
+              name: user.calcDisplayname(),
+              presenceUserId: user.stateKey,
+            ),
+          ),
+        );
+      },
     );
   }
 }
