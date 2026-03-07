@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 
 import 'package:matrix/matrix.dart';
 
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/pages/chat_permissions_settings/chat_permissions_settings.dart';
-import 'package:fluffychat/pages/chat_permissions_settings/permission_list_tile.dart';
-import 'package:fluffychat/widgets/layouts/max_width_body.dart';
-import 'package:fluffychat/widgets/matrix.dart';
+import 'package:cynk/l10n/l10n.dart';
+import 'package:cynk/pages/chat_permissions_settings/chat_permissions_settings.dart';
+import 'package:cynk/pages/chat_permissions_settings/permission_list_tile.dart';
+import 'package:cynk/widgets/layouts/max_width_body.dart';
+import 'package:cynk/widgets/matrix.dart';
 
 class ChatPermissionsSettingsView extends StatelessWidget {
   final ChatPermissionsSettingsController controller;

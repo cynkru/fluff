@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import 'package:fluffychat/config/app_config.dart';
-import 'package:fluffychat/config/themes.dart';
+import 'package:cynk/config/app_config.dart';
+import 'package:cynk/config/themes.dart';
 
 class MaxWidthBody extends StatelessWidget {
   final Widget child;

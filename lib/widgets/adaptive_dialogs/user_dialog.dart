@@ -5,12 +5,12 @@ import 'package:flutter_linkify/flutter_linkify.dart';
 import 'package:go_router/go_router.dart';
 import 'package:matrix/matrix.dart';
 
-import 'package:fluffychat/config/themes.dart';
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/utils/date_time_extension.dart';
-import 'package:fluffychat/widgets/adaptive_dialogs/adaptive_dialog_action.dart';
-import 'package:fluffychat/widgets/avatar.dart';
-import 'package:fluffychat/widgets/presence_builder.dart';
+import 'package:cynk/config/themes.dart';
+import 'package:cynk/l10n/l10n.dart';
+import 'package:cynk/utils/date_time_extension.dart';
+import 'package:cynk/widgets/adaptive_dialogs/adaptive_dialog_action.dart';
+import 'package:cynk/widgets/avatar.dart';
+import 'package:cynk/widgets/presence_builder.dart';
 import '../../utils/url_launcher.dart';
 import '../future_loading_dialog.dart';
 import '../hover_builder.dart';

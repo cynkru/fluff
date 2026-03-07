@@ -6,11 +6,11 @@ import 'package:matrix/matrix.dart';
 import 'package:pretty_qr_code/pretty_qr_code.dart';
 import 'package:qr_image/qr_image.dart';
 
-import 'package:fluffychat/config/app_config.dart';
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/utils/fluffy_share.dart';
-import 'package:fluffychat/utils/matrix_sdk_extensions/matrix_file_extension.dart';
-import 'package:fluffychat/widgets/future_loading_dialog.dart';
+import 'package:cynk/config/app_config.dart';
+import 'package:cynk/l10n/l10n.dart';
+import 'package:cynk/utils/fluffy_share.dart';
+import 'package:cynk/utils/matrix_sdk_extensions/matrix_file_extension.dart';
+import 'package:cynk/widgets/future_loading_dialog.dart';
 import '../config/themes.dart';
 
 Future<void> showQrCodeViewer(BuildContext context, String content) =>

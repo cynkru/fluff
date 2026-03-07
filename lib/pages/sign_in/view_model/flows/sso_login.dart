@@ -5,8 +5,8 @@ import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
 import 'package:matrix/matrix.dart';
 import 'package:universal_html/html.dart' as html;
 
-import 'package:fluffychat/config/app_config.dart';
-import 'package:fluffychat/utils/platform_infos.dart';
+import 'package:cynk/config/app_config.dart';
+import 'package:cynk/utils/platform_infos.dart';
 
 Future<void> ssoLoginFlow(
   Client client,

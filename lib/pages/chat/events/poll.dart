@@ -4,12 +4,12 @@ import 'package:async/async.dart';
 import 'package:flutter_linkify/flutter_linkify.dart';
 import 'package:matrix/matrix.dart' hide Result;
 
-import 'package:fluffychat/config/app_config.dart';
-import 'package:fluffychat/config/setting_keys.dart';
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/utils/url_launcher.dart';
-import 'package:fluffychat/widgets/avatar.dart';
-import 'package:fluffychat/widgets/future_loading_dialog.dart';
+import 'package:cynk/config/app_config.dart';
+import 'package:cynk/config/setting_keys.dart';
+import 'package:cynk/l10n/l10n.dart';
+import 'package:cynk/utils/url_launcher.dart';
+import 'package:cynk/widgets/avatar.dart';
+import 'package:cynk/widgets/future_loading_dialog.dart';
 
 class PollWidget extends StatelessWidget {
   final Event event;

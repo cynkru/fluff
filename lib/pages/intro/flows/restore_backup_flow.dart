@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-import 'package:fluffychat/utils/file_selector.dart';
-import 'package:fluffychat/widgets/future_loading_dialog.dart';
-import 'package:fluffychat/widgets/matrix.dart';
+import 'package:cynk/utils/file_selector.dart';
+import 'package:cynk/widgets/future_loading_dialog.dart';
+import 'package:cynk/widgets/matrix.dart';
 
 Future<void> restoreBackupFlow(BuildContext context) async {
   final picked = await selectFiles(context);

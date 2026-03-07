@@ -8,12 +8,12 @@ import 'package:flutter_vodozemac/flutter_vodozemac.dart' as vod;
 import 'package:go_router/go_router.dart';
 import 'package:matrix/matrix.dart';
 
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/utils/client_download_content_extension.dart';
-import 'package:fluffychat/utils/client_manager.dart';
-import 'package:fluffychat/utils/matrix_sdk_extensions/matrix_locals.dart';
-import 'package:fluffychat/utils/platform_infos.dart';
-import 'package:fluffychat/utils/push_helper.dart';
+import 'package:cynk/l10n/l10n.dart';
+import 'package:cynk/utils/client_download_content_extension.dart';
+import 'package:cynk/utils/client_manager.dart';
+import 'package:cynk/utils/matrix_sdk_extensions/matrix_locals.dart';
+import 'package:cynk/utils/platform_infos.dart';
+import 'package:cynk/utils/push_helper.dart';
 import '../config/app_config.dart';
 import '../config/setting_keys.dart';
 

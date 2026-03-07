@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
-import 'package:fluffychat/config/setting_keys.dart';
-import 'package:fluffychat/config/themes.dart';
-import 'package:fluffychat/pages/chat_list/chat_list.dart';
-import 'package:fluffychat/pages/chat_list/start_chat_fab.dart';
-import 'package:fluffychat/widgets/navigation_rail.dart';
+import 'package:cynk/config/setting_keys.dart';
+import 'package:cynk/config/themes.dart';
+import 'package:cynk/pages/chat_list/chat_list.dart';
+import 'package:cynk/pages/chat_list/start_chat_fab.dart';
+import 'package:cynk/widgets/navigation_rail.dart';
 import 'chat_list_body.dart';
 
 class ChatListView extends StatelessWidget {

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'package:fluffychat/pages/sign_in/view_model/model/public_homeserver_data.dart';
+import 'package:cynk/pages/sign_in/view_model/model/public_homeserver_data.dart';
 
 class SignInState {
   final PublicHomeserverData? selectedHomeserver;

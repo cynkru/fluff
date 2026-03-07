@@ -6,12 +6,12 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:url_launcher/url_launcher_string.dart';
 
-import 'package:fluffychat/config/app_config.dart';
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/pages/intro/flows/restore_backup_flow.dart';
-import 'package:fluffychat/utils/platform_infos.dart';
-import 'package:fluffychat/widgets/layouts/login_scaffold.dart';
-import 'package:fluffychat/widgets/matrix.dart';
+import 'package:cynk/config/app_config.dart';
+import 'package:cynk/l10n/l10n.dart';
+import 'package:cynk/pages/intro/flows/restore_backup_flow.dart';
+import 'package:cynk/utils/platform_infos.dart';
+import 'package:cynk/widgets/layouts/login_scaffold.dart';
+import 'package:cynk/widgets/matrix.dart';
 
 class IntroPage extends StatelessWidget {
   const IntroPage({super.key});

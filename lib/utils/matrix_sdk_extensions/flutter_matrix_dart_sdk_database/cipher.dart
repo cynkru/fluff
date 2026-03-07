@@ -7,9 +7,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:matrix/matrix.dart';
 
-import 'package:fluffychat/config/setting_keys.dart';
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/utils/client_manager.dart';
+import 'package:cynk/config/setting_keys.dart';
+import 'package:cynk/l10n/l10n.dart';
+import 'package:cynk/utils/client_manager.dart';
 
 const _passwordStorageKey = 'database_password';
 

@@ -4,12 +4,12 @@ import 'package:go_router/go_router.dart';
 import 'package:matrix/matrix.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:fluffychat/config/routes.dart';
-import 'package:fluffychat/config/setting_keys.dart';
-import 'package:fluffychat/config/themes.dart';
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/widgets/app_lock.dart';
-import 'package:fluffychat/widgets/theme_builder.dart';
+import 'package:cynk/config/routes.dart';
+import 'package:cynk/config/setting_keys.dart';
+import 'package:cynk/config/themes.dart';
+import 'package:cynk/l10n/l10n.dart';
+import 'package:cynk/widgets/app_lock.dart';
+import 'package:cynk/widgets/theme_builder.dart';
 import '../utils/custom_scroll_behaviour.dart';
 import 'matrix.dart';
 

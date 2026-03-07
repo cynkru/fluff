@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 import 'package:matrix/matrix.dart';
 
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/utils/localized_exception_extension.dart';
+import 'package:cynk/l10n/l10n.dart';
+import 'package:cynk/utils/localized_exception_extension.dart';
 
 class StartPollBottomSheet extends StatefulWidget {
   final Room room;

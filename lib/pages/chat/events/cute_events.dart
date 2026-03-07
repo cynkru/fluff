@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 
 import 'package:matrix/matrix.dart';
 
-import 'package:fluffychat/config/setting_keys.dart';
-import 'package:fluffychat/l10n/l10n.dart';
+import 'package:cynk/config/setting_keys.dart';
+import 'package:cynk/l10n/l10n.dart';
 
 class CuteContent extends StatefulWidget {
   final Event event;

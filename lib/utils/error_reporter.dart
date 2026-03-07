@@ -4,9 +4,9 @@ import 'package:flutter/services.dart';
 import 'package:matrix/matrix.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import 'package:fluffychat/config/app_config.dart';
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/widgets/adaptive_dialogs/adaptive_dialog_action.dart';
+import 'package:cynk/config/app_config.dart';
+import 'package:cynk/l10n/l10n.dart';
+import 'package:cynk/widgets/adaptive_dialogs/adaptive_dialog_action.dart';
 
 class ErrorReporter {
   final BuildContext? context;

@@ -1,4 +1,4 @@
-import 'package:fluffychat/pages/sign_in/view_model/model/public_homeserver_data.dart';
+import 'package:cynk/pages/sign_in/view_model/model/public_homeserver_data.dart';
 
 int sortHomeservers(PublicHomeserverData a, PublicHomeserverData b) {
   return _calcHomeserverScore(b).compareTo(_calcHomeserverScore(a));

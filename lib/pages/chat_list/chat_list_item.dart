@@ -2,14 +2,14 @@ import 'package:flutter/material.dart';
 
 import 'package:matrix/matrix.dart';
 
-import 'package:fluffychat/config/app_config.dart';
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/pages/chat_list/unread_bubble.dart';
-import 'package:fluffychat/utils/matrix_sdk_extensions/matrix_locals.dart';
-import 'package:fluffychat/utils/room_status_extension.dart';
-import 'package:fluffychat/widgets/adaptive_dialogs/show_ok_cancel_alert_dialog.dart';
-import 'package:fluffychat/widgets/future_loading_dialog.dart';
-import 'package:fluffychat/widgets/hover_builder.dart';
+import 'package:cynk/config/app_config.dart';
+import 'package:cynk/l10n/l10n.dart';
+import 'package:cynk/pages/chat_list/unread_bubble.dart';
+import 'package:cynk/utils/matrix_sdk_extensions/matrix_locals.dart';
+import 'package:cynk/utils/room_status_extension.dart';
+import 'package:cynk/widgets/adaptive_dialogs/show_ok_cancel_alert_dialog.dart';
+import 'package:cynk/widgets/future_loading_dialog.dart';
+import 'package:cynk/widgets/hover_builder.dart';
 import '../../config/themes.dart';
 import '../../utils/date_time_extension.dart';
 import '../../widgets/avatar.dart';

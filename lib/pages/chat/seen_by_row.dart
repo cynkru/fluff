@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 
 import 'package:matrix/matrix.dart';
 
-import 'package:fluffychat/config/themes.dart';
-import 'package:fluffychat/widgets/avatar.dart';
-import 'package:fluffychat/widgets/matrix.dart';
+import 'package:cynk/config/themes.dart';
+import 'package:cynk/widgets/avatar.dart';
+import 'package:cynk/widgets/matrix.dart';
 
 class SeenByRow extends StatelessWidget {
   final Event event;

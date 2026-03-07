@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 
 import 'package:matrix/matrix.dart';
 
-import 'package:fluffychat/config/themes.dart';
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/pages/chat_list/chat_list.dart';
-import 'package:fluffychat/pages/chat_list/client_chooser_button.dart';
-import 'package:fluffychat/utils/sync_status_localization.dart';
+import 'package:cynk/config/themes.dart';
+import 'package:cynk/l10n/l10n.dart';
+import 'package:cynk/pages/chat_list/chat_list.dart';
+import 'package:cynk/pages/chat_list/client_chooser_button.dart';
+import 'package:cynk/utils/sync_status_localization.dart';
 import '../../widgets/matrix.dart';
 
 class ChatListHeader extends StatelessWidget implements PreferredSizeWidget {

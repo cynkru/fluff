@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 
 import 'package:matrix/matrix.dart';
 
-import 'package:fluffychat/config/setting_keys.dart';
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/widgets/adaptive_dialogs/show_ok_cancel_alert_dialog.dart';
-import 'package:fluffychat/widgets/adaptive_dialogs/show_text_input_dialog.dart';
-import 'package:fluffychat/widgets/app_lock.dart';
-import 'package:fluffychat/widgets/future_loading_dialog.dart';
-import 'package:fluffychat/widgets/matrix.dart';
+import 'package:cynk/config/setting_keys.dart';
+import 'package:cynk/l10n/l10n.dart';
+import 'package:cynk/widgets/adaptive_dialogs/show_ok_cancel_alert_dialog.dart';
+import 'package:cynk/widgets/adaptive_dialogs/show_text_input_dialog.dart';
+import 'package:cynk/widgets/app_lock.dart';
+import 'package:cynk/widgets/future_loading_dialog.dart';
+import 'package:cynk/widgets/matrix.dart';
 import 'settings_security_view.dart';
 
 class SettingsSecurity extends StatefulWidget {

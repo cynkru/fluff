@@ -4,11 +4,11 @@ import 'package:flutter/material.dart';
 
 import 'package:matrix/matrix.dart';
 
-import 'package:fluffychat/config/app_config.dart';
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/utils/adaptive_bottom_sheet.dart';
-import 'package:fluffychat/utils/date_time_extension.dart';
-import 'package:fluffychat/widgets/avatar.dart';
+import 'package:cynk/config/app_config.dart';
+import 'package:cynk/l10n/l10n.dart';
+import 'package:cynk/utils/adaptive_bottom_sheet.dart';
+import 'package:cynk/utils/date_time_extension.dart';
+import 'package:cynk/widgets/avatar.dart';
 
 extension EventInfoDialogExtension on Event {
   void showInfoDialog(BuildContext context) => showAdaptiveBottomSheet(

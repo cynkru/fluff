@@ -5,17 +5,17 @@ import 'package:go_router/go_router.dart';
 import 'package:matrix/encryption.dart';
 import 'package:matrix/matrix.dart';
 
-import 'package:fluffychat/config/themes.dart';
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/utils/error_reporter.dart';
-import 'package:fluffychat/utils/fluffy_share.dart';
-import 'package:fluffychat/utils/localized_exception_extension.dart';
-import 'package:fluffychat/utils/platform_infos.dart';
-import 'package:fluffychat/utils/sync_status_localization.dart';
-import 'package:fluffychat/widgets/adaptive_dialogs/show_ok_cancel_alert_dialog.dart';
-import 'package:fluffychat/widgets/future_loading_dialog.dart';
-import 'package:fluffychat/widgets/layouts/login_scaffold.dart';
-import 'package:fluffychat/widgets/matrix.dart';
+import 'package:cynk/config/themes.dart';
+import 'package:cynk/l10n/l10n.dart';
+import 'package:cynk/utils/error_reporter.dart';
+import 'package:cynk/utils/fluffy_share.dart';
+import 'package:cynk/utils/localized_exception_extension.dart';
+import 'package:cynk/utils/platform_infos.dart';
+import 'package:cynk/utils/sync_status_localization.dart';
+import 'package:cynk/widgets/adaptive_dialogs/show_ok_cancel_alert_dialog.dart';
+import 'package:cynk/widgets/future_loading_dialog.dart';
+import 'package:cynk/widgets/layouts/login_scaffold.dart';
+import 'package:cynk/widgets/matrix.dart';
 import '../key_verification/key_verification_dialog.dart';
 
 class BootstrapDialog extends StatefulWidget {

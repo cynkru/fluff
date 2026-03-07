@@ -7,10 +7,10 @@ import 'package:go_router/go_router.dart';
 import 'package:matrix/matrix.dart' as sdk;
 import 'package:matrix/matrix.dart';
 
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/pages/new_group/new_group_view.dart';
-import 'package:fluffychat/utils/file_selector.dart';
-import 'package:fluffychat/widgets/matrix.dart';
+import 'package:cynk/l10n/l10n.dart';
+import 'package:cynk/pages/new_group/new_group_view.dart';
+import 'package:cynk/utils/file_selector.dart';
+import 'package:cynk/widgets/matrix.dart';
 
 class NewGroup extends StatefulWidget {
   final CreateGroupType createGroupType;

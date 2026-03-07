@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 
 import 'package:matrix/matrix.dart';
 
-import 'package:fluffychat/config/app_config.dart';
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/pages/chat_search/search_footer.dart';
-import 'package:fluffychat/utils/date_time_extension.dart';
-import 'package:fluffychat/utils/matrix_sdk_extensions/event_extension.dart';
+import 'package:cynk/config/app_config.dart';
+import 'package:cynk/l10n/l10n.dart';
+import 'package:cynk/pages/chat_search/search_footer.dart';
+import 'package:cynk/utils/date_time_extension.dart';
+import 'package:cynk/utils/matrix_sdk_extensions/event_extension.dart';
 
 class ChatSearchFilesTab extends StatelessWidget {
   final Room room;

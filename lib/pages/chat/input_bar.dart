@@ -5,11 +5,11 @@ import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:matrix/matrix.dart';
 import 'package:slugify/slugify.dart';
 
-import 'package:fluffychat/config/app_config.dart';
-import 'package:fluffychat/config/setting_keys.dart';
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/utils/markdown_context_builder.dart';
-import 'package:fluffychat/widgets/mxc_image.dart';
+import 'package:cynk/config/app_config.dart';
+import 'package:cynk/config/setting_keys.dart';
+import 'package:cynk/l10n/l10n.dart';
+import 'package:cynk/utils/markdown_context_builder.dart';
+import 'package:cynk/widgets/mxc_image.dart';
 import '../../widgets/avatar.dart';
 import '../../widgets/matrix.dart';
 import 'command_hints.dart';

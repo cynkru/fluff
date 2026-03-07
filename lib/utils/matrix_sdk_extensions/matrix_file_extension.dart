@@ -4,8 +4,8 @@ import 'package:file_picker/file_picker.dart';
 import 'package:matrix/matrix.dart';
 import 'package:share_plus/share_plus.dart';
 
-import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/utils/size_string.dart';
+import 'package:cynk/l10n/l10n.dart';
+import 'package:cynk/utils/size_string.dart';
 
 extension MatrixFileExtension on MatrixFile {
   void save(BuildContext context) async {
