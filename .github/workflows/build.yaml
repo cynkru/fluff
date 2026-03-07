@@ -67,13 +67,26 @@ jobs:
     steps:
       - uses: actions/checkout@v4
     
-      # Ставим Java 17 для Gradle (основная)
-      - name: Setup Java 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'zulu'
-          java-version: '17.0.14'
-      
+            # Ставим Java 17 для Gradle (основная)
+      - name: Setup Java
+        run: |
+          # Проверяем, установлена ли Java 17
+          if ! java -version 2>&1 | grep -q "version \"17"; then
+            echo "Java 17 not found, installing..."
+            sudo apt update
+            sudo apt install -y openjdk-17-jdk
+          else
+            echo "Java 17 already installed"
+          fi
+          
+          # Устанавливаем JAVA_HOME
+          echo "JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64" >> $GITHUB_ENV
+          echo "JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64" >> ~/.bashrc
+          
+          # Проверяем версию
+          java -version
+          javac -version
+            
       - name: Setup Android SDK
         uses: amyu/setup-android@v5
         with:
