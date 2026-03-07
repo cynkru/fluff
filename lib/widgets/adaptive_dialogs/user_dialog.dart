@@ -16,6 +16,7 @@ import '../future_loading_dialog.dart';
 import '../hover_builder.dart';
 import '../matrix.dart';
 import '../mxc_image_viewer.dart';
+import 'dart:convert';
 
 // Модель для бейджа
 class Badge {
@@ -60,7 +61,7 @@ class UserDialog extends StatelessWidget {
       );
       
       if (response.statusCode == 200) {
-        final data = response.data as Map<String, dynamic>;
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
         return {
           'badges': data['badges'] ?? [],
           'selected_badge': data['selected_badge'],
@@ -103,12 +104,12 @@ class UserDialog extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: isSelected 
-            ? Theme.of(Matrix.context).colorScheme.primaryContainer
+            ? Theme.of(context).colorScheme.primaryContainer
             : Colors.grey.shade100,
         borderRadius: BorderRadius.circular(16),
         border: isSelected
             ? Border.all(
-                color: Theme.of(Matrix.context).colorScheme.primary,
+                color: Theme.of(context).colorScheme.primary,
                 width: 1,
               )
             : null,

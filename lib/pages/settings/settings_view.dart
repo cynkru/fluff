@@ -12,6 +12,8 @@ import 'package:cynk/widgets/avatar.dart';
 import 'package:cynk/widgets/matrix.dart';
 import '../../widgets/mxc_image_viewer.dart';
 import 'settings.dart';
+import 'dart:convert';
+
 
 // Модель для бейджа
 class Badge {
@@ -319,7 +321,7 @@ class SettingsView extends StatelessWidget {
       );
       
       if (response.statusCode == 200) {
-        final data = response.data as Map<String, dynamic>;
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
         return {
           'badges': data['badges'] ?? [],
           'selected_badge': data['selected_badge'],
@@ -339,8 +341,9 @@ class SettingsView extends StatelessWidget {
     
     try {
       await client.httpClient.post(
-        '/_matrix/client/v3/profile/$userId/selected_badge',
-        data: {'selected_badge': badgeType},
+        Uri.parse('/_matrix/client/v3/profile/$userId/selected_badge'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'selected_badge': badgeType}),
       );
       
       // Обновляем UI

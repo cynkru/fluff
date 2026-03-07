@@ -6,6 +6,8 @@ import 'package:cynk/config/app_config.dart';
 import 'package:cynk/l10n/l10n.dart';
 import 'package:cynk/widgets/member_actions_popup_menu_button.dart';
 import '../../widgets/avatar.dart';
+import 'package:cynk/widgets/matrix.dart';
+import 'dart:convert';
 
 class ParticipantListItem extends StatelessWidget {
   final User user;
@@ -21,7 +23,7 @@ class ParticipantListItem extends StatelessWidget {
       );
       
       if (response.statusCode == 200) {
-        final data = response.data as Map<String, dynamic>;
+        final data = jsonDecode(response.body) as Map<String, dynamic>
         return {
           'badges': data['badges'] ?? [],
           'selected_badge': data['selected_badge'],
