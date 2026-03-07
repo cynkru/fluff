@@ -66,13 +66,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
-      - name: Setup Java
+    
+      # Ставим Java 17 для Gradle (основная)
+      - name: Setup Java 17
         uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
-          java-version: '11'
-          
+          java-version: '17'
+        
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
@@ -80,79 +81,63 @@ jobs:
           channel: 'stable'
           cache: true
           cache-key: ${{ needs.prepare.outputs.cache_key }}
-      
-      # Минимальное кеширование - только самое нужное
+    
       - name: Cache Gradle
         uses: actions/cache@v4
         with:
           path: ~/.gradle/caches
           key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
           restore-keys: ${{ runner.os }}-gradle-
-      
-      - name: Cache Flutter dependencies
-        uses: actions/cache@v4
-        with:
-          path: ~/.pub-cache
-          key: ${{ needs.prepare.outputs.cache_key }}
-          restore-keys: ${{ runner.os }}-flutter-
-      
-      # Чистим диск
-      - name: Free disk space
-        run: |
-          sudo rm -rf /usr/share/dotnet
-          sudo rm -rf /opt/ghc
-          docker rmi $(docker image ls -q) 2>/dev/null || true
-      
+    
       - name: Install dependencies
         run: flutter pub get
-      
-      # Конфигурируем Gradle для стабильной работы
-      - name: Configure Gradle
+    
+      # Обновляем receive_sharing_intent до последней версии
+      - name: Update receive_sharing_intent
         run: |
+          # Форсируем последнюю версию плагина
+          flutter pub upgrade receive_sharing_intent
+    
+      # Конфигурируем для совместимости
+      - name: Configure compatibility
+        run: |
+          # Создаем gradle.properties с явным указанием Java для компиляции
           mkdir -p ~/.gradle
           cat > ~/.gradle/gradle.properties << EOF
-          org.gradle.jvmargs=-Xmx4608m -XX:MaxMetaspaceSize=512m -XX:+HeapDumpOnOutOfMemoryError
+          org.gradle.jvmargs=-Xmx4608m -XX:MaxMetaspaceSize=512m -Dfile.encoding=UTF-8
           org.gradle.daemon=false
           org.gradle.parallel=true
           org.gradle.workers.max=2
           android.useAndroidX=true
-          android.enableJetifier=false
-          kotlin.daemon.jvm.args=-Xmx1536m
+          android.enableJetifier=true
+        
+          # Явно указываем Java 11 для компиляции Kotlin/Java кода
+          # но Gradle сам остается на Java 17
+          kotlin.jvm.target=11
           EOF
-          
-          # Для проекта
-          mkdir -p android
-          cp ~/.gradle/gradle.properties android/gradle.properties 2>/dev/null || true
-      
-      # Бьем Jetifier кеш на всякий случай
-      - name: Clear Jetifier cache
-        run: |
-          rm -rf ~/.gradle/caches/transforms-*
-          rm -rf ~/.gradle/caches/jetifier-*
-          rm -rf ~/.gradle/caches/build-cache-*
-      
-      # Сборка только для arm64 (меньше памяти)
+        
+          # Патчим build.gradle.kts если нужно
+          if [ -f "android/app/build.gradle.kts" ]; then
+            # Добавляем совместимость в kotlinOptions
+            sed -i '/android {/a \ \ \ \ compileOptions {\n\ \ \ \ \ \ \ \ sourceCompatibility = JavaVersion.VERSION_11\n\ \ \ \ \ \ \ \ targetCompatibility = JavaVersion.VERSION_11\n\ \ \ \ }\n\ \ \ \ kotlinOptions {\n\ \ \ \ \ \ \ \ jvmTarget = "11"\n\ \ \ \ }' android/app/build.gradle.kts
+          fi
+    
+      # Пробуем собрать
       - name: Build Android APK
-        run: |
-          flutter build apk --debug \
-            --target-platform=android-arm64 \
-
-            --dart-define=SUPPRESS_ANALYTICS=true
-      
-      # Если упало - пробуем прямой gradle
-      - name: Fallback to direct Gradle
+        run: flutter build apk --debug
+    
+      # Если упало - пробуем с форсированной совместимостью
+      - name: Fallback with compatibility flags
         if: failure()
         run: |
+          # Пробуем явно указать Java 11 для тасков
           cd android
-          rm -rf ~/.gradle/caches/transforms-*
-          ./gradlew clean
           ./gradlew assembleDebug \
-            -Ptarget-platform=android-arm64 \
-            --max-workers=1 \
-            --no-daemon \
-            --stacktrace
-      
-      # Загружаем артефакты
+            -Dorg.gradle.java.home=/opt/hostedtoolcache/Java_Zulu_jdk/11.0.30-7/x64 \
+            -Pkotlin.jvm.target=11 \
+            --max-workers=2 \
+            --no-daemon
+    
       - name: Upload Android artifacts
         if: always()
         uses: actions/upload-artifact@v4
@@ -160,9 +145,8 @@ jobs:
           name: android-build-${{ github.event.inputs.build_name }}-${{ github.event.inputs.build_number }}
           path: |
             build/app/outputs/flutter-apk/*.apk
-            build/app/outputs/apk/**/*.apk
+            android/app/build/outputs/apk/**/*.apk
           retention-days: 7
-          if-no-files-found: warn
   build-ios:
     needs: prepare
     if: ${{ github.event.inputs.platform == 'all' || github.event.inputs.platform == 'ios' }}
