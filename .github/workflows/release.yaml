@@ -105,13 +105,9 @@ jobs:
           # Принимаем все лицензии автоматически
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
           
-          # Альтернативный способ - создаем файл с принятыми лицензиями
+          # Создаем файл с принятыми лицензиями
           touch ~/.android/repositories.cfg
           
-          # Принимаем конкретные лицензии
-          echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" > ~/.android/license_accepted
-          
-          # Проверяем результат
           echo "Android licenses accepted"
         
       - name: Setup Flutter
@@ -164,7 +160,25 @@ jobs:
     
       # Сборка релизной версии
       - name: Build Android APK (Release)
-        run: flutter build apk --release --build-name=${{ needs.prepare.outputs.build_name }} --build-number=${{ needs.prepare.outputs.build_number }}
+        run: |
+          flutter build apk --release \
+            --build-name=${{ needs.prepare.outputs.build_name }} \
+            --build-number=${{ needs.prepare.outputs.build_number }}
+          
+          # Создаем папку для файлов релиза
+          mkdir -p release-files
+          
+          # Копируем APK с понятным именем
+          if [ -f "build/app/outputs/flutter-apk/app-release.apk" ]; then
+            cp build/app/outputs/flutter-apk/app-release.apk "release-files/android-${{ needs.prepare.outputs.build_name }}.apk"
+          fi
+          
+          if [ -f "build/app/outputs/apk/release/app-release.apk" ]; then
+            cp build/app/outputs/apk/release/app-release.apk "release-files/android-${{ needs.prepare.outputs.build_name }}.apk"
+          fi
+          
+          # Также ищем другие возможные варианты
+          find . -name "*.apk" -exec cp {} release-files/ \; 2>/dev/null || true
     
       # Если упало - пробуем с форсированной совместимостью
       - name: Fallback with compatibility flags
@@ -177,19 +191,11 @@ jobs:
             -Pkotlin.jvm.target=11 \
             --max-workers=2 \
             --no-daemon
-    
-      - name: Prepare Android artifacts for upload
-        run: |
-          mkdir -p release-artifacts/android
-          # Копируем все APK файлы в одну папку
-          find . -name "*.apk" -exec cp {} release-artifacts/android/ \;
           
-      - name: Upload Android artifacts (temporary)
-        uses: actions/upload-artifact@v4
-        with:
-          name: android-build-${{ needs.prepare.outputs.build_name }}
-          path: release-artifacts/android/
-          retention-days: 1
+          # Копируем APK если сборка удалась
+          cd ..
+          mkdir -p release-files
+          find . -name "*.apk" -exec cp {} release-files/ \; 2>/dev/null || true
 
   build-ios:
     needs: prepare
@@ -241,19 +247,13 @@ jobs:
             --build-name=${{ needs.prepare.outputs.build_name }} \
             --build-number=${{ needs.prepare.outputs.build_number }} \
             --verbose
-      
-      - name: Prepare iOS artifacts
-        run: |
-          mkdir -p release-artifacts/ios
-          cd build/ios/iphoneos
-          zip -r ../../release-artifacts/ios/Runner.zip Runner.app
           
-      - name: Upload iOS artifacts (temporary)
-        uses: actions/upload-artifact@v4
-        with:
-          name: ios-build-${{ needs.prepare.outputs.build_name }}
-          path: release-artifacts/ios/
-          retention-days: 1
+          # Создаем папку для файлов релиза
+          mkdir -p release-files
+          
+          # Создаем ZIP архив с билдом
+          cd build/ios/iphoneos
+          zip -r ../../../release-files/ios-${{ needs.prepare.outputs.build_name }}.zip Runner.app
 
   build-linux:
     needs: prepare
@@ -309,23 +309,17 @@ jobs:
         run: flutter pub get
         
       - name: Build Linux (release)
-        run: flutter build linux --release
-        
-      - name: Prepare Linux artifacts
         run: |
-          mkdir -p release-artifacts/linux
-          if [ -d "build/linux/x64/release/bundle" ]; then
-            cd build/linux/x64/release/bundle
-            tar -czf ../../../release-artifacts/linux/linux-build.tar.gz .
-          fi
+          flutter build linux --release
           
-      - name: Upload Linux artifacts (temporary)
-        uses: actions/upload-artifact@v4
-        with:
-          name: linux-build-${{ needs.prepare.outputs.build_name }}
-          path: release-artifacts/linux/
-          retention-days: 1
-          if-no-files-found: ignore
+          # Создаем папку для файлов релиза
+          mkdir -p release-files
+          
+          # Создаем tar.gz архив
+          if [ -d "build/linux/x64/release/bundle" ]; then
+            cd build/linux/x64/release
+            tar -czf ../../../release-files/linux-${{ needs.prepare.outputs.build_name }}.tar.gz bundle/
+          fi
 
   build-windows:
     needs: prepare
@@ -360,21 +354,16 @@ jobs:
         run: flutter pub get
         
       - name: Build Windows (release)
-        run: flutter build windows --release
-        
-      - name: Prepare Windows artifacts
         run: |
-          mkdir release-artifacts\windows
-          xcopy /E /I build\windows\x64\runner\Release release-artifacts\windows\
-          cd release-artifacts\windows
-          powershell Compress-Archive -Path * -DestinationPath ..\windows-build.zip
+          flutter build windows --release
           
-      - name: Upload Windows artifacts (temporary)
-        uses: actions/upload-artifact@v4
-        with:
-          name: windows-build-${{ needs.prepare.outputs.build_name }}
-          path: release-artifacts/windows-build.zip
-          retention-days: 1
+          # Создаем папку для файлов релиза
+          mkdir release-files
+          
+          # Создаем ZIP архив
+          if (Test-Path "build\windows\x64\runner\Release") {
+            Compress-Archive -Path "build\windows\x64\runner\Release\*" -DestinationPath "release-files\windows-${{ needs.prepare.outputs.build_name }}.zip" -Force
+          }
 
   build-web:
     needs: prepare
@@ -406,72 +395,54 @@ jobs:
         run: flutter pub get
         
       - name: Build Web (release)
-        run: flutter build web --release
-        
-      - name: Prepare Web artifacts
         run: |
-          mkdir -p release-artifacts/web
-          cp -r build/web/* release-artifacts/web/
-          cd release-artifacts
-          tar -czf web-build.tar.gz web/
+          flutter build web --release
           
-      - name: Upload Web artifacts (temporary)
-        uses: actions/upload-artifact@v4
-        with:
-          name: web-build-${{ needs.prepare.outputs.build_name }}
-          path: release-artifacts/web-build.tar.gz
-          retention-days: 1
+          # Создаем папку для файлов релиза
+          mkdir -p release-files
+          
+          # Создаем архив
+          cd build/web
+          zip -r ../../release-files/web-${{ needs.prepare.outputs.build_name }}.zip .
 
   upload-to-release:
     needs: [prepare, build-android, build-ios, build-linux, build-windows, build-web]
     runs-on: ubuntu-latest
     steps:
-      - name: Download all artifacts
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Download all built files from all jobs
         uses: actions/download-artifact@v4
         with:
-          path: artifacts/
+          path: all-artifacts/
           
-      - name: Prepare files for release
+      - name: Create unified release folder
         run: |
-          mkdir -p release-files
+          mkdir -p final-release
           
-          # Переименовываем файлы для красоты
-          if [ -d "artifacts/android-build-${{ needs.prepare.outputs.build_name }}" ]; then
-            find "artifacts/android-build-${{ needs.prepare.outputs.build_name }}" -name "*.apk" -exec cp {} release-files/ \;
-            # Переименовываем APK для ясности
-            cd release-files
-            for apk in *.apk; do
-              mv "$apk" "android-${{ needs.prepare.outputs.build_name }}-$apk" 2>/dev/null || true
-            done
-            cd ..
+          # Копируем файлы из artifacts если они есть (на случай если какие-то джобы сохранили артефакты)
+          if [ -d "all-artifacts" ]; then
+            find all-artifacts -name "*.apk" -exec cp {} final-release/ \; 2>/dev/null || true
+            find all-artifacts -name "*.zip" -exec cp {} final-release/ \; 2>/dev/null || true
+            find all-artifacts -name "*.tar.gz" -exec cp {} final-release/ \; 2>/dev/null || true
           fi
           
-          if [ -f "artifacts/ios-build-${{ needs.prepare.outputs.build_name }}/Runner.zip" ]; then
-            cp "artifacts/ios-build-${{ needs.prepare.outputs.build_name }}/Runner.zip" "release-files/ios-${{ needs.prepare.outputs.build_name }}.zip"
-          fi
+          # Также ищем release-files от каждой джобы (они сохраняются в рабочей директории)
+          find . -path "*/release-files/*" -name "*.apk" -exec cp {} final-release/ \; 2>/dev/null || true
+          find . -path "*/release-files/*" -name "*.zip" -exec cp {} final-release/ \; 2>/dev/null || true
+          find . -path "*/release-files/*" -name "*.tar.gz" -exec cp {} final-release/ \; 2>/dev/null || true
           
-          if [ -f "artifacts/linux-build-${{ needs.prepare.outputs.build_name }}/linux-build.tar.gz" ]; then
-            cp "artifacts/linux-build-${{ needs.prepare.outputs.build_name }}/linux-build.tar.gz" "release-files/linux-${{ needs.prepare.outputs.build_name }}.tar.gz"
-          fi
+          echo "Files ready for release:"
+          ls -la final-release/
           
-          if [ -f "artifacts/windows-build-${{ needs.prepare.outputs.build_name }}/windows-build.zip" ]; then
-            cp "artifacts/windows-build-${{ needs.prepare.outputs.build_name }}/windows-build.zip" "release-files/windows-${{ needs.prepare.outputs.build_name }}.zip"
-          fi
-          
-          if [ -f "artifacts/web-build-${{ needs.prepare.outputs.build_name }}/web-build.tar.gz" ]; then
-            cp "artifacts/web-build-${{ needs.prepare.outputs.build_name }}/web-build.tar.gz" "release-files/web-${{ needs.prepare.outputs.build_name }}.tar.gz"
-          fi
-          
-          echo "Files prepared for release:"
-          ls -la release-files/
-          
-      - name: Upload artifacts to GitHub Release
+      - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v1
         with:
-          files: release-files/*
-          tag_name: ${{ needs.prepare.outputs.release_tag }}
-          name: ${{ needs.prepare.outputs.release_name }}
-          body: ${{ needs.prepare.outputs.release_body }}
+          files: final-release/*
+          tag_name: ${{ github.event.release.tag_name }}
+          name: ${{ github.event.release.name }}
+          body: ${{ github.event.release.body }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
