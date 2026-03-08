@@ -19,7 +19,7 @@ class ParticipantListItem extends StatelessWidget {
     final client = Matrix.of(context).client;
     try {
       final response = await client.httpClient.get(
-        'client.httpClient.get(Uri.parse('client.httpClient.get(Uri.parse('/_matrix/client/v3/profile/${user.id}',
+        Uri.parse('/_matrix/client/v3/profile/${user.id}'),
       );
       
       if (response.statusCode == 200) {
