@@ -99,7 +99,7 @@ class UserDialog extends StatelessWidget {
   }
 
   // Виджет для отображения бейджа с текстом
-  Widget _buildBadgeChip(Badge badge, {bool isSelected = false}) {
+    Widget _buildBadgeChip(BuildContext context, Badge badge, {bool isSelected = false}) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
