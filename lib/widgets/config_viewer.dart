@@ -63,7 +63,7 @@ class _ConfigViewerState extends State<ConfigViewer> {
             padding: const EdgeInsets.all(16),
             color: theme.colorScheme.errorContainer,
             child: Text(
-              'Changing configs by hand is untested! Use without any warranty!',
+              'Изменение настроек вручную не тестировалось! Используйте без каких-либо гарантий!',
               style: TextStyle(color: theme.colorScheme.onErrorContainer),
             ),
           ),
