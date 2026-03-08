@@ -1,4 +1,4 @@
-name: Build Flutter App (Manual)
+name: Build Flutter Release (Manual)
 
 on:
   workflow_dispatch:
