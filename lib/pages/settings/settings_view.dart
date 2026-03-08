@@ -275,7 +275,7 @@ class SettingsView extends StatelessWidget {
                   : null,
             ),
             Divider(color: theme.dividerColor),
-            ListTile(
+            /*ListTile(
               leading: const Icon(Icons.dns_outlined),
               title: Text(
                 L10n.of(context).aboutHomeserver(
@@ -286,7 +286,7 @@ class SettingsView extends StatelessWidget {
               tileColor: activeRoute.startsWith('/rooms/settings/homeserver')
                   ? theme.colorScheme.surfaceContainerHigh
                   : null,
-            ),
+            ),*/
             ListTile(
               leading: const Icon(Icons.privacy_tip_outlined),
               title: Text(L10n.of(context).privacy),

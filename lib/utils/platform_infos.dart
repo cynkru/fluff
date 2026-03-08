@@ -52,12 +52,12 @@ abstract class PlatformInfos {
     showAboutDialog(
       context: context,
       children: [
-        Text(L10n.of(context).versionWithNumber(version)),
-        TextButton.icon(
+        Text('Версия: $version'),
+        /*TextButton.icon(
           onPressed: () => launchUrlString(AppConfig.sourceCodeUrl),
           icon: const Icon(Icons.source_outlined),
           label: Text(L10n.of(context).sourceCode),
-        ),
+        ),*/
         Builder(
           builder: (innerContext) {
             return TextButton.icon(
@@ -78,13 +78,13 @@ abstract class PlatformInfos {
                 Navigator.of(innerContext).pop();
               },
               icon: const Icon(Icons.settings_applications_outlined),
-              label: Text(L10n.of(context).advancedConfigs),
+              label: Text("Продвинутые настройки"),
             );
           },
         ),
       ],
       applicationIcon: Image.asset(
-        'assets/logo.png',
+        'assets/logo_transparent.png',
         width: 64,
         height: 64,
         filterQuality: FilterQuality.medium,

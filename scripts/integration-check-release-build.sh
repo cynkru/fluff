@@ -18,9 +18,9 @@ flutter build apk --release
 
 # install and launch APK
 flutter install
-adb shell am start -n chat.fluffy.fluffychat/chat.fluffy.fluffychat.MainActivity
+adb shell am start -n ru.cynk.fluffychat/ru.cynk.fluffychat.MainActivity
 
 sleep 5
 
 # check whether FluffyChat runs
-adb shell ps | awk '{print $9}' | grep chat.fluffy.fluffychat
+adb shell ps | awk '{print $9}' | grep ru.cynk.fluffychat

@@ -65,7 +65,7 @@ class AppLock extends State<AppLockWidget> with WidgetsBindingObserver {
 
   Future<void> changePincode(String? pincode) async {
     await const FlutterSecureStorage().write(
-      key: 'chat.fluffy.app_lock',
+      key: 'ru.cynk.app_lock',
       value: pincode,
     );
     _pincode = pincode;

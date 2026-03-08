@@ -34,7 +34,7 @@ configurations.all {
 
 
 android {
-    namespace = "chat.fluffy.fluffychat"
+    namespace = "ru.cynk.fluffychat"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 

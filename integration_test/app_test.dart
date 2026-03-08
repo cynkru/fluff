@@ -21,7 +21,7 @@ void main() {
     setUpAll(() {
       // this random dialog popping up is super hard to cover in tests
       SharedPreferences.setMockInitialValues({
-        'chat.fluffy.show_no_google': false,
+        'ru.cynk.show_no_google': false,
       });
     });
 
