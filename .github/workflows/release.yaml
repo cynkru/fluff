@@ -1,29 +1,6 @@
 name: Build Flutter App (Release)
 
 on:
-  # Ручной запуск
-  workflow_dispatch:
-    inputs:
-      build_name:
-        description: 'Build name/version (e.g., 1.0.0)'
-        required: true
-        default: '1.0.0'
-      build_number:
-        description: 'Build number'
-        required: true
-        default: '1'
-      platform:
-        description: 'Platform to build'
-        required: true
-        type: choice
-        options:
-          - all
-          - android
-          - ios
-          - linux
-          - web
-          - windows
-  
   # Автоматический запуск при создании релиза
   release:
     types: [published]
@@ -43,6 +20,9 @@ jobs:
       cache_key: ${{ steps.cache_key.outputs.key }}
       build_name: ${{ steps.version.outputs.build_name }}
       build_number: ${{ steps.version.outputs.build_number }}
+      release_tag: ${{ steps.release.outputs.tag }}
+      release_name: ${{ steps.release.outputs.name }}
+      release_body: ${{ steps.release.outputs.body }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -55,20 +35,23 @@ jobs:
           echo "repository=${GITHUB_REPOSITORY}" >> $GITHUB_OUTPUT
           echo "branch=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
       
-      - name: Get version from release or input
+      - name: Get release info
+        id: release
+        run: |
+          # Извлекаем версию из тега релиза (убираем 'v' если есть)
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "tag=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
+          echo "name=${{ github.event.release.name }}" >> $GITHUB_OUTPUT
+          echo "body=${{ github.event.release.body }}" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          
+      - name: Set version
         id: version
         run: |
-          if [[ "${{ github.event_name }}" == "release" ]]; then
-            # Извлекаем версию из тега релиза (убираем 'v' если есть)
-            VERSION="${GITHUB_REF_NAME#v}"
-            echo "build_name=$VERSION" >> $GITHUB_OUTPUT
-            echo "build_number=${GITHUB_RUN_NUMBER}" >> $GITHUB_OUTPUT
-            echo "Using release version: $VERSION (build ${GITHUB_RUN_NUMBER})"
-          else
-            echo "build_name=${{ github.event.inputs.build_name }}" >> $GITHUB_OUTPUT
-            echo "build_number=${{ github.event.inputs.build_number }}" >> $GITHUB_OUTPUT
-            echo "Using manual version: ${{ github.event.inputs.build_name }} (build ${{ github.event.inputs.build_number }})"
-          fi
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "build_name=$VERSION" >> $GITHUB_OUTPUT
+          echo "build_number=${GITHUB_RUN_NUMBER}" >> $GITHUB_OUTPUT
+          echo "Using release version: $VERSION (build ${GITHUB_RUN_NUMBER})"
       
       - name: Generate cache key
         id: cache_key
@@ -84,8 +67,7 @@ jobs:
 
   build-android:
     needs: prepare
-    if: ${{ (github.event.inputs.platform == 'all' || github.event.inputs.platform == 'android') || github.event_name == 'release' }}
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4
     
@@ -179,18 +161,21 @@ jobs:
             --max-workers=2 \
             --no-daemon
     
-      - name: Upload Android artifacts
+      - name: Prepare Android artifacts for upload
+        run: |
+          mkdir -p release-artifacts/android
+          # Копируем все APK файлы в одну папку
+          find . -name "*.apk" -exec cp {} release-artifacts/android/ \;
+          
+      - name: Upload Android artifacts (temporary)
         uses: actions/upload-artifact@v4
         with:
-          name: android-build-${{ needs.prepare.outputs.build_name }}-${{ needs.prepare.outputs.build_number }}
-          path: |
-            build/app/outputs/flutter-apk/*.apk
-            android/app/build/outputs/apk/**/*.apk
-          retention-days: 30  # Увеличиваем срок хранения для релизов
+          name: android-build-${{ needs.prepare.outputs.build_name }}
+          path: release-artifacts/android/
+          retention-days: 1
 
   build-ios:
     needs: prepare
-    if: ${{ (github.event.inputs.platform == 'all' || github.event.inputs.platform == 'ios') || github.event_name == 'release' }}
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -240,21 +225,21 @@ jobs:
             --build-number=${{ needs.prepare.outputs.build_number }} \
             --verbose
       
-      - name: Create iOS artifact archive
+      - name: Prepare iOS artifacts
         run: |
+          mkdir -p release-artifacts/ios
           cd build/ios/iphoneos
-          zip -r ../../../ios-build.zip Runner.app
-      
-      - name: Upload iOS artifacts
+          zip -r ../../release-artifacts/ios/Runner.zip Runner.app
+          
+      - name: Upload iOS artifacts (temporary)
         uses: actions/upload-artifact@v4
         with:
-          name: ios-build-${{ needs.prepare.outputs.build_name }}-${{ needs.prepare.outputs.build_number }}
-          path: ios-build.zip
-          retention-days: 30
+          name: ios-build-${{ needs.prepare.outputs.build_name }}
+          path: release-artifacts/ios/
+          retention-days: 1
 
   build-linux:
     needs: prepare
-    if: ${{ (github.event.inputs.platform == 'all' || github.event.inputs.platform == 'linux') || github.event_name == 'release' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -309,24 +294,24 @@ jobs:
       - name: Build Linux (release)
         run: flutter build linux --release
         
-      - name: Create tar.gz archive
+      - name: Prepare Linux artifacts
         run: |
+          mkdir -p release-artifacts/linux
           if [ -d "build/linux/x64/release/bundle" ]; then
             cd build/linux/x64/release/bundle
-            tar -czf ../../../../../linux-build.tar.gz .
+            tar -czf ../../../release-artifacts/linux/linux-build.tar.gz .
           fi
           
-      - name: Upload Linux artifacts
+      - name: Upload Linux artifacts (temporary)
         uses: actions/upload-artifact@v4
         with:
-          name: linux-build-${{ needs.prepare.outputs.build_name }}-${{ needs.prepare.outputs.build_number }}
-          path: linux-build.tar.gz
-          retention-days: 30
+          name: linux-build-${{ needs.prepare.outputs.build_name }}
+          path: release-artifacts/linux/
+          retention-days: 1
           if-no-files-found: ignore
 
   build-windows:
     needs: prepare
-    if: ${{ (github.event.inputs.platform == 'all' || github.event.inputs.platform == 'windows') || github.event_name == 'release' }}
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -360,16 +345,22 @@ jobs:
       - name: Build Windows (release)
         run: flutter build windows --release
         
-      - name: Upload Windows artifacts
+      - name: Prepare Windows artifacts
+        run: |
+          mkdir release-artifacts\windows
+          xcopy /E /I build\windows\x64\runner\Release release-artifacts\windows\
+          cd release-artifacts\windows
+          powershell Compress-Archive -Path * -DestinationPath ..\windows-build.zip
+          
+      - name: Upload Windows artifacts (temporary)
         uses: actions/upload-artifact@v4
         with:
-          name: windows-build-${{ needs.prepare.outputs.build_name }}-${{ needs.prepare.outputs.build_number }}
-          path: build/windows/x64/runner/Release/
-          retention-days: 30
+          name: windows-build-${{ needs.prepare.outputs.build_name }}
+          path: release-artifacts/windows-build.zip
+          retention-days: 1
 
   build-web:
     needs: prepare
-    if: ${{ (github.event.inputs.platform == 'all' || github.event.inputs.platform == 'web') || github.event_name == 'release' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -400,16 +391,22 @@ jobs:
       - name: Build Web (release)
         run: flutter build web --release
         
-      - name: Upload Web artifacts
+      - name: Prepare Web artifacts
+        run: |
+          mkdir -p release-artifacts/web
+          cp -r build/web/* release-artifacts/web/
+          cd release-artifacts
+          tar -czf web-build.tar.gz web/
+          
+      - name: Upload Web artifacts (temporary)
         uses: actions/upload-artifact@v4
         with:
-          name: web-build-${{ needs.prepare.outputs.build_name }}-${{ needs.prepare.outputs.build_number }}
-          path: build/web/
-          retention-days: 30
+          name: web-build-${{ needs.prepare.outputs.build_name }}
+          path: release-artifacts/web-build.tar.gz
+          retention-days: 1
 
-  release-artifacts:
+  upload-to-release:
     needs: [prepare, build-android, build-ios, build-linux, build-windows, build-web]
-    if: github.event_name == 'release'
     runs-on: ubuntu-latest
     steps:
       - name: Download all artifacts
@@ -417,30 +414,55 @@ jobs:
         with:
           path: artifacts/
           
-      - name: Upload artifacts to release
+      - name: Prepare files for release
+        run: |
+          mkdir -p release-files
+          
+          # Переименовываем файлы для красоты
+          if [ -d "artifacts/android-build-${{ needs.prepare.outputs.build_name }}" ]; then
+            find "artifacts/android-build-${{ needs.prepare.outputs.build_name }}" -name "*.apk" -exec cp {} release-files/ \;
+            # Переименовываем APK для ясности
+            cd release-files
+            for apk in *.apk; do
+              mv "$apk" "android-${{ needs.prepare.outputs.build_name }}-$apk" 2>/dev/null || true
+            done
+            cd ..
+          fi
+          
+          if [ -f "artifacts/ios-build-${{ needs.prepare.outputs.build_name }}/Runner.zip" ]; then
+            cp "artifacts/ios-build-${{ needs.prepare.outputs.build_name }}/Runner.zip" "release-files/ios-${{ needs.prepare.outputs.build_name }}.zip"
+          fi
+          
+          if [ -f "artifacts/linux-build-${{ needs.prepare.outputs.build_name }}/linux-build.tar.gz" ]; then
+            cp "artifacts/linux-build-${{ needs.prepare.outputs.build_name }}/linux-build.tar.gz" "release-files/linux-${{ needs.prepare.outputs.build_name }}.tar.gz"
+          fi
+          
+          if [ -f "artifacts/windows-build-${{ needs.prepare.outputs.build_name }}/windows-build.zip" ]; then
+            cp "artifacts/windows-build-${{ needs.prepare.outputs.build_name }}/windows-build.zip" "release-files/windows-${{ needs.prepare.outputs.build_name }}.zip"
+          fi
+          
+          if [ -f "artifacts/web-build-${{ needs.prepare.outputs.build_name }}/web-build.tar.gz" ]; then
+            cp "artifacts/web-build-${{ needs.prepare.outputs.build_name }}/web-build.tar.gz" "release-files/web-${{ needs.prepare.outputs.build_name }}.tar.gz"
+          fi
+          
+          echo "Files prepared for release:"
+          ls -la release-files/
+          
+      - name: Upload artifacts to GitHub Release
         uses: softprops/action-gh-release@v1
         with:
-          files: |
-            artifacts/**/*.apk
-            artifacts/**/*.zip
-            artifacts/**/*.tar.gz
-            artifacts/**/build/web/**
-          tag_name: ${{ github.event.release.tag_name }}
-          name: ${{ github.event.release.name }}
-          body: ${{ github.event.release.body }}
+          files: release-files/*
+          tag_name: ${{ needs.prepare.outputs.release_tag }}
+          name: ${{ needs.prepare.outputs.release_name }}
+          body: ${{ needs.prepare.outputs.release_body }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   summary:
-    needs: [prepare, build-android, build-ios, build-linux, build-windows, build-web]
+    needs: [prepare, build-android, build-ios, build-linux, build-windows, build-web, upload-to-release]
     if: always()
     runs-on: ubuntu-latest
     steps:
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts/
-          
       - name: Create build summary
         run: |
           # Собираем статусы
@@ -449,10 +471,11 @@ jobs:
           LINUX_STATUS="${{ needs.build-linux.result }}"
           WINDOWS_STATUS="${{ needs.build-windows.result }}"
           WEB_STATUS="${{ needs.build-web.result }}"
+          UPLOAD_STATUS="${{ needs.upload-to-release.result }}"
           
           # Определяем общий статус
           if [[ "$ANDROID_STATUS" == "success" || "$IOS_STATUS" == "success" || "$LINUX_STATUS" == "success" || "$WINDOWS_STATUS" == "success" || "$WEB_STATUS" == "success" ]]; then
-            if [[ "$ANDROID_STATUS" == "success" && "$IOS_STATUS" == "success" && "$LINUX_STATUS" == "success" && "$WINDOWS_STATUS" == "success" && "$WEB_STATUS" == "success" ]]; then
+            if [[ "$ANDROID_STATUS" == "success" && "$IOS_STATUS" == "success" && "$LINUX_STATUS" == "success" && "$WINDOWS_STATUS" == "success" && "$WEB_STATUS" == "success" && "$UPLOAD_STATUS" == "success" ]]; then
               OVERALL_STATUS="✅ Полностью успешно"
             else
               OVERALL_STATUS="⚠️ Частично успешно"
@@ -461,44 +484,33 @@ jobs:
             OVERALL_STATUS="❌ Все сборки провалены"
           fi
           
-          # Определяем триггер
-          if [[ "${{ github.event_name }}" == "release" ]]; then
-            TRIGGER="📦 Релиз: ${{ github.event.release.tag_name }}"
-          else
-            TRIGGER="🖐️ Ручной запуск"
-          fi
-          
           # Создаем summary
           {
-            echo "# Build Complete"
+            echo "# 🚀 Релиз собран и загружен!"
             echo ""
-            echo "## Repository Information"
-            echo "- Repository: ${{ needs.prepare.outputs.repository }}"
-            echo "- Branch: ${{ needs.prepare.outputs.branch }}"
-            echo "- Build Name: ${{ needs.prepare.outputs.build_name }}"
-            echo "- Build Number: ${{ needs.prepare.outputs.build_number }}"
-            echo "- Trigger: $TRIGGER"
-            echo "- Overall Status: $OVERALL_STATUS"
-            echo "- Cache Key: ${{ needs.prepare.outputs.cache_key }}"
+            echo "## Информация о релизе"
+            echo "- Репозиторий: ${{ needs.prepare.outputs.repository }}"
+            echo "- Ветка: ${{ needs.prepare.outputs.branch }}"
+            echo "- Тег: ${{ needs.prepare.outputs.release_tag }}"
+            echo "- Версия: ${{ needs.prepare.outputs.build_name }}"
+            echo "- Номер сборки: ${{ needs.prepare.outputs.build_number }}"
+            echo "- Общий статус: $OVERALL_STATUS"
             echo ""
-            echo "## Build Status"
+            echo "## Статусы сборки"
             echo ""
-            echo "| Platform | Status | Artifacts |"
-            echo "|----------|--------|-----------|"
-            echo "| Android | $ANDROID_STATUS | [Download](#) |"
-            echo "| iOS | $IOS_STATUS | [Download](#) |"
-            echo "| Linux | $LINUX_STATUS | [Download](#) |"
-            echo "| Windows | $WINDOWS_STATUS | [Download](#) |"
-            echo "| Web | $WEB_STATUS | [Download](#) |"
+            echo "| Платформа | Статус |"
+            echo "|-----------|--------|"
+            echo "| Android | $ANDROID_STATUS |"
+            echo "| iOS | $IOS_STATUS |"
+            echo "| Linux | $LINUX_STATUS |"
+            echo "| Windows | $WINDOWS_STATUS |"
+            echo "| Web | $WEB_STATUS |"
+            echo "| Загрузка в релиз | $UPLOAD_STATUS |"
             echo ""
-            echo "## Available Artifacts"
+            echo "## Ссылки"
             echo ""
-            if [ -d "artifacts" ] && [ "$(ls -A artifacts)" ]; then
-              echo "✅ Artifacts created:"
-              ls -la artifacts/
-            else
-              echo "⚠️ No artifacts were created"
-            fi
+            echo "- 🔗 [Релиз на GitHub](https://github.com/${{ github.repository }}/releases/tag/${{ needs.prepare.outputs.release_tag }})"
+            echo "- 🔗 [Сборка в Actions](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})"
           } >> $GITHUB_STEP_SUMMARY
       
       - name: Send Telegram notification
@@ -507,12 +519,12 @@ jobs:
           token: ${{ secrets.tgTOKEN }}
           to: ${{ secrets.tgTO }}
           message: |
-            🚀 **Flutter Build Report**
+            🚀 **Flutter Release Build Complete!**
             
             📦 Репозиторий: ${{ needs.prepare.outputs.repository }}
             🌿 Ветка: ${{ needs.prepare.outputs.branch }}
-            🏷️ Версия: ${{ needs.prepare.outputs.build_name }} (build ${{ needs.prepare.outputs.build_number }})
-            🔄 Триггер: ${{ github.event_name == 'release' && 'Релиз' || 'Ручной' }}
+            🏷️ Тег: ${{ needs.prepare.outputs.release_tag }}
+            🔢 Версия: ${{ needs.prepare.outputs.build_name }} (build ${{ needs.prepare.outputs.build_number }})
             
             **Статусы сборки:**
             🤖 Android: ${{ needs.build-android.result }}
@@ -520,5 +532,7 @@ jobs:
             🐧 Linux: ${{ needs.build-linux.result }}
             🪟 Windows: ${{ needs.build-windows.result }}
             🌐 Web: ${{ needs.build-web.result }}
+            📤 Загрузка в релиз: ${{ needs.upload-to-release.result }}
             
+            🔗 [Ссылка на релиз](https://github.com/${{ github.repository }}/releases/tag/${{ needs.prepare.outputs.release_tag }})
             🔗 [Ссылка на сборку](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
