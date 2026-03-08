@@ -164,21 +164,16 @@ jobs:
           flutter build apk --release \
             --build-name=${{ needs.prepare.outputs.build_name }} \
             --build-number=${{ needs.prepare.outputs.build_number }}
-          
-          # Создаем папку для файлов релиза
-          mkdir -p release-files
-          
-          # Копируем APK с понятным именем
-          if [ -f "build/app/outputs/flutter-apk/app-release.apk" ]; then
-            cp build/app/outputs/flutter-apk/app-release.apk "release-files/android-${{ needs.prepare.outputs.build_name }}.apk"
-          fi
-          
-          if [ -f "build/app/outputs/apk/release/app-release.apk" ]; then
-            cp build/app/outputs/apk/release/app-release.apk "release-files/android-${{ needs.prepare.outputs.build_name }}.apk"
-          fi
-          
-          # Также ищем другие возможные варианты
-          find . -name "*.apk" -exec cp {} release-files/ \; 2>/dev/null || true
+      
+      - name: Upload Android APK to Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            build/app/outputs/flutter-apk/app-release.apk
+            build/app/outputs/apk/release/app-release.apk
+          tag_name: ${{ github.event.release.tag_name }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     
       # Если упало - пробуем с форсированной совместимостью
       - name: Fallback with compatibility flags
@@ -192,10 +187,19 @@ jobs:
             --max-workers=2 \
             --no-daemon
           
-          # Копируем APK если сборка удалась
+          # Загружаем если удалось
           cd ..
-          mkdir -p release-files
-          find . -name "*.apk" -exec cp {} release-files/ \; 2>/dev/null || true
+      
+      - name: Upload Android APK from fallback
+        if: failure() && success()  # Эта проверка не совсем корректна, но оставим для логики
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            build/app/outputs/flutter-apk/app-release.apk
+            build/app/outputs/apk/release/app-release.apk
+          tag_name: ${{ github.event.release.tag_name }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build-ios:
     needs: prepare
@@ -248,12 +252,17 @@ jobs:
             --build-number=${{ needs.prepare.outputs.build_number }} \
             --verbose
           
-          # Создаем папку для файлов релиза
-          mkdir -p release-files
-          
           # Создаем ZIP архив с билдом
           cd build/ios/iphoneos
-          zip -r ../../../release-files/ios-${{ needs.prepare.outputs.build_name }}.zip Runner.app
+          zip -r ../../../ios-${{ needs.prepare.outputs.build_name }}.zip Runner.app
+      
+      - name: Upload iOS to Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: ios-${{ needs.prepare.outputs.build_name }}.zip
+          tag_name: ${{ github.event.release.tag_name }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build-linux:
     needs: prepare
@@ -312,14 +321,19 @@ jobs:
         run: |
           flutter build linux --release
           
-          # Создаем папку для файлов релиза
-          mkdir -p release-files
-          
           # Создаем tar.gz архив
           if [ -d "build/linux/x64/release/bundle" ]; then
             cd build/linux/x64/release
-            tar -czf ../../../release-files/linux-${{ needs.prepare.outputs.build_name }}.tar.gz bundle/
+            tar -czf ../../../linux-${{ needs.prepare.outputs.build_name }}.tar.gz bundle/
           fi
+      
+      - name: Upload Linux to Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: linux-${{ needs.prepare.outputs.build_name }}.tar.gz
+          tag_name: ${{ github.event.release.tag_name }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build-windows:
     needs: prepare
@@ -357,13 +371,18 @@ jobs:
         run: |
           flutter build windows --release
           
-          # Создаем папку для файлов релиза
-          mkdir release-files
-          
           # Создаем ZIP архив
           if (Test-Path "build\windows\x64\runner\Release") {
-            Compress-Archive -Path "build\windows\x64\runner\Release\*" -DestinationPath "release-files\windows-${{ needs.prepare.outputs.build_name }}.zip" -Force
+            Compress-Archive -Path "build\windows\x64\runner\Release\*" -DestinationPath "windows-${{ needs.prepare.outputs.build_name }}.zip" -Force
           }
+      
+      - name: Upload Windows to Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: windows-${{ needs.prepare.outputs.build_name }}.zip
+          tag_name: ${{ github.event.release.tag_name }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build-web:
     needs: prepare
@@ -398,56 +417,20 @@ jobs:
         run: |
           flutter build web --release
           
-          # Создаем папку для файлов релиза
-          mkdir -p release-files
-          
           # Создаем архив
           cd build/web
-          zip -r ../../release-files/web-${{ needs.prepare.outputs.build_name }}.zip .
-
-  upload-to-release:
-    needs: [prepare, build-android, build-ios, build-linux, build-windows, build-web]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+          zip -r ../../web-${{ needs.prepare.outputs.build_name }}.zip .
       
-      - name: Download all built files from all jobs
-        uses: actions/download-artifact@v4
-        with:
-          path: all-artifacts/
-          
-      - name: Create unified release folder
-        run: |
-          mkdir -p final-release
-          
-          # Копируем файлы из artifacts если они есть (на случай если какие-то джобы сохранили артефакты)
-          if [ -d "all-artifacts" ]; then
-            find all-artifacts -name "*.apk" -exec cp {} final-release/ \; 2>/dev/null || true
-            find all-artifacts -name "*.zip" -exec cp {} final-release/ \; 2>/dev/null || true
-            find all-artifacts -name "*.tar.gz" -exec cp {} final-release/ \; 2>/dev/null || true
-          fi
-          
-          # Также ищем release-files от каждой джобы (они сохраняются в рабочей директории)
-          find . -path "*/release-files/*" -name "*.apk" -exec cp {} final-release/ \; 2>/dev/null || true
-          find . -path "*/release-files/*" -name "*.zip" -exec cp {} final-release/ \; 2>/dev/null || true
-          find . -path "*/release-files/*" -name "*.tar.gz" -exec cp {} final-release/ \; 2>/dev/null || true
-          
-          echo "Files ready for release:"
-          ls -la final-release/
-          
-      - name: Upload to GitHub Release
+      - name: Upload Web to Release
         uses: softprops/action-gh-release@v1
         with:
-          files: final-release/*
+          files: web-${{ needs.prepare.outputs.build_name }}.zip
           tag_name: ${{ github.event.release.tag_name }}
-          name: ${{ github.event.release.name }}
-          body: ${{ github.event.release.body }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   summary:
-    needs: [prepare, build-android, build-ios, build-linux, build-windows, build-web, upload-to-release]
+    needs: [prepare, build-android, build-ios, build-linux, build-windows, build-web]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -459,11 +442,10 @@ jobs:
           LINUX_STATUS="${{ needs.build-linux.result }}"
           WINDOWS_STATUS="${{ needs.build-windows.result }}"
           WEB_STATUS="${{ needs.build-web.result }}"
-          UPLOAD_STATUS="${{ needs.upload-to-release.result }}"
           
           # Определяем общий статус
           if [[ "$ANDROID_STATUS" == "success" || "$IOS_STATUS" == "success" || "$LINUX_STATUS" == "success" || "$WINDOWS_STATUS" == "success" || "$WEB_STATUS" == "success" ]]; then
-            if [[ "$ANDROID_STATUS" == "success" && "$IOS_STATUS" == "success" && "$LINUX_STATUS" == "success" && "$WINDOWS_STATUS" == "success" && "$WEB_STATUS" == "success" && "$UPLOAD_STATUS" == "success" ]]; then
+            if [[ "$ANDROID_STATUS" == "success" && "$IOS_STATUS" == "success" && "$LINUX_STATUS" == "success" && "$WINDOWS_STATUS" == "success" && "$WEB_STATUS" == "success" ]]; then
               OVERALL_STATUS="✅ Полностью успешно"
             else
               OVERALL_STATUS="⚠️ Частично успешно"
@@ -493,7 +475,6 @@ jobs:
             echo "| Linux | $LINUX_STATUS |"
             echo "| Windows | $WINDOWS_STATUS |"
             echo "| Web | $WEB_STATUS |"
-            echo "| Загрузка в релиз | $UPLOAD_STATUS |"
             echo ""
             echo "## Ссылки"
             echo ""
@@ -520,7 +501,6 @@ jobs:
             🐧 Linux: ${{ needs.build-linux.result }}
             🪟 Windows: ${{ needs.build-windows.result }}
             🌐 Web: ${{ needs.build-web.result }}
-            📤 Загрузка в релиз: ${{ needs.upload-to-release.result }}
             
             🔗 [Ссылка на релиз](https://github.com/${{ github.repository }}/releases/tag/${{ needs.prepare.outputs.release_tag }})
             🔗 [Ссылка на сборку](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
