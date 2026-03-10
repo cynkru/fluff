@@ -1,4 +1,4 @@
-name: Build Flutter Release (Manual)
+name: Build Flutter App (Manual)
 
 on:
   workflow_dispatch:
@@ -25,7 +25,6 @@ on:
 
 env:
   FLUTTER_VERSION: '3.x'
-  # Увеличиваем память для всех Gradle операций
   GRADLE_OPTS: -Xmx6g -Xms4g -XX:MaxMetaspaceSize=1g -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8
   JAVA_OPTS: -Xmx6g -Xms4g -XX:MaxMetaspaceSize=1g
 
@@ -45,13 +44,12 @@ jobs:
       - name: Get repository info
         id: repo
         run: |
-          echo "repository=${GITHUB_REPOSITORY}" >> $GITHUB_OUTPUT
-          echo "branch=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
+          echo "repository=${GITEA_REPOSITORY}" >> $GITHUB_OUTPUT
+          echo "branch=${GITEA_REF_NAME}" >> $GITHUB_OUTPUT
       
       - name: Generate cache key
         id: cache_key
         run: |
-          # Создаем ключ кеша на основе pubspec.lock и важных файлов
           if [ -f "pubspec.lock" ]; then
             CACHE_KEY="${{ runner.os }}-flutter-${{ hashFiles('pubspec.lock') }}"
           else
@@ -63,14 +61,12 @@ jobs:
   build-android:
     needs: prepare
     if: ${{ github.event.inputs.platform == 'all' || github.event.inputs.platform == 'android' }}
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
     
-            # Ставим Java 17 для Gradle (основная)
       - name: Setup Java
         run: |
-          # Проверяем, установлена ли Java 17
           if ! java -version 2>&1 | grep -q "version \"17"; then
             echo "Java 17 not found, installing..."
             sudo apt update
@@ -79,22 +75,18 @@ jobs:
             echo "Java 17 already installed"
           fi
           
-          # Устанавливаем JAVA_HOME
           echo "JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64" >> $GITHUB_ENV
-          echo "JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64" >> ~/.bashrc
-          
-          # Проверяем версию
           java -version
           javac -version
             
       - name: Setup Android SDK
-        uses: amyu/setup-android@v5
+        uses: actions/setup-android@v4
         with:
           sdk-version: '34'
           build-tools-version: '34.0.0'
         
       - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+        uses: actions/flutter-action@v2
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: 'stable'
@@ -111,16 +103,11 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
     
-      # Обновляем receive_sharing_intent до последней версии
       - name: Update receive_sharing_intent
-        run: |
-          # Форсируем последнюю версию плагина
-          flutter pub upgrade receive_sharing_intent
+        run: flutter pub upgrade receive_sharing_intent
     
-      # Конфигурируем для совместимости
       - name: Configure compatibility
         run: |
-          # Создаем gradle.properties с явным указанием Java для компиляции
           mkdir -p ~/.gradle
           cat > ~/.gradle/gradle.properties << EOF
           org.gradle.jvmargs=-Xmx4608m -XX:MaxMetaspaceSize=512m -Dfile.encoding=UTF-8
@@ -129,30 +116,22 @@ jobs:
           org.gradle.workers.max=2
           android.useAndroidX=true
           android.enableJetifier=true
-        
-          # Явно указываем Java 11 для компиляции Kotlin/Java кода
-          # но Gradle сам остается на Java 17
           kotlin.jvm.target=11
           EOF
         
-          # Патчим build.gradle.kts если нужно
           if [ -f "android/app/build.gradle.kts" ]; then
-            # Добавляем совместимость в kotlinOptions
             sed -i '/android {/a \ \ \ \ compileOptions {\n\ \ \ \ \ \ \ \ sourceCompatibility = JavaVersion.VERSION_11\n\ \ \ \ \ \ \ \ targetCompatibility = JavaVersion.VERSION_11\n\ \ \ \ }\n\ \ \ \ kotlinOptions {\n\ \ \ \ \ \ \ \ jvmTarget = "11"\n\ \ \ \ }' android/app/build.gradle.kts
           fi
     
-      # Пробуем собрать
       - name: Build Android APK
-        run: flutter build apk --release
+        run: flutter build apk --debug
     
-      # Если упало - пробуем с форсированной совместимостью
       - name: Fallback with compatibility flags
         if: failure()
         run: |
-          # Пробуем явно указать Java 11 для тасков
           cd android
           ./gradlew assembleDebug \
-            -Dorg.gradle.java.home=/opt/hostedtoolcache/Java_Zulu_jdk/11.0.30-7/x64 \
+            -Dorg.gradle.java.home=/usr/lib/jvm/java-11-openjdk-amd64 \
             -Pkotlin.jvm.target=11 \
             --max-workers=2 \
             --no-daemon
@@ -166,6 +145,7 @@ jobs:
             build/app/outputs/flutter-apk/*.apk
             android/app/build/outputs/apk/**/*.apk
           retention-days: 7
+
   build-ios:
     needs: prepare
     if: ${{ github.event.inputs.platform == 'all' || github.event.inputs.platform == 'ios' }}
@@ -174,7 +154,7 @@ jobs:
       - uses: actions/checkout@v4
       
       - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+        uses: actions/flutter-action@v2
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: 'stable'
@@ -213,8 +193,7 @@ jobs:
       
       - name: Build iOS (debug, no codesign)
         run: |
-          flutter build ios --release --no-codesign \
-            --verbose
+          flutter build ios --debug --no-codesign --verbose
       
       - name: Create iOS artifact archive
         run: |
@@ -227,9 +206,6 @@ jobs:
           name: ios-build-${{ github.event.inputs.build_name }}-${{ github.event.inputs.build_number }}
           path: ios-build.zip
           retention-days: 7
-
-  # Остальные jobs (build-linux, build-windows, build-web) остаются без изменений
-  # с добавлением улучшенного кеширования по аналогии с iOS
 
   build-linux:
     needs: prepare
@@ -272,7 +248,7 @@ jobs:
             libgl1-mesa-dev
           
       - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+        uses: actions/flutter-action@v2
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: 'stable'
@@ -286,7 +262,7 @@ jobs:
         run: flutter pub get
         
       - name: Build Linux (debug)
-        run: flutter build linux --release
+        run: flutter build linux --debug
         
       - name: Create tar.gz archive
         run: |
@@ -323,7 +299,7 @@ jobs:
             ${{ runner.os }}-flutter-
       
       - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+        uses: actions/flutter-action@v2
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: 'stable'
@@ -337,7 +313,7 @@ jobs:
         run: flutter pub get
         
       - name: Build Windows (debug)
-        run: flutter build windows --release
+        run: flutter build windows --debug
         
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4
@@ -366,7 +342,7 @@ jobs:
             ${{ runner.os }}-flutter-
       
       - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+        uses: actions/flutter-action@v2
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: 'stable'
@@ -377,7 +353,7 @@ jobs:
         run: flutter pub get
         
       - name: Build Web (debug)
-        run: flutter build web --release
+        run: flutter build web --debug
         
       - name: Upload Web artifacts
         uses: actions/upload-artifact@v4
@@ -398,25 +374,22 @@ jobs:
           
       - name: Create build summary
         run: |
-          # Собираем статусы
           ANDROID_STATUS="${{ needs.build-android.result }}"
           IOS_STATUS="${{ needs.build-ios.result }}"
           LINUX_STATUS="${{ needs.build-linux.result }}"
           WINDOWS_STATUS="${{ needs.build-windows.result }}"
           WEB_STATUS="${{ needs.build-web.result }}"
           
-          # Определяем общий статус
           if [[ "$ANDROID_STATUS" == "success" || "$IOS_STATUS" == "success" || "$LINUX_STATUS" == "success" || "$WINDOWS_STATUS" == "success" || "$WEB_STATUS" == "success" ]]; then
             if [[ "$ANDROID_STATUS" == "success" && "$IOS_STATUS" == "success" && "$LINUX_STATUS" == "success" && "$WINDOWS_STATUS" == "success" && "$WEB_STATUS" == "success" ]]; then
-              OVERALL_STATUS="✅ Полностью успешно"
+              OVERALL_STATUS="✅ Fully successful"
             else
-              OVERALL_STATUS="⚠️ Частично успешно"
+              OVERALL_STATUS="⚠️ Partially successful"
             fi
           else
-            OVERALL_STATUS="❌ Все сборки провалены"
+            OVERALL_STATUS="❌ All builds failed"
           fi
           
-          # Создаем summary
           {
             echo "# Build Complete"
             echo ""
@@ -430,13 +403,13 @@ jobs:
             echo ""
             echo "## Build Status"
             echo ""
-            echo "| Platform | Status | Artifacts |"
-            echo "|----------|--------|-----------|"
-            echo "| Android | $ANDROID_STATUS | [Download](#) |"
-            echo "| iOS | $IOS_STATUS | [Download](#) |"
-            echo "| Linux | $LINUX_STATUS | [Download](#) |"
-            echo "| Windows | $WINDOWS_STATUS | [Download](#) |"
-            echo "| Web | $WEB_STATUS | [Download](#) |"
+            echo "| Platform | Status |"
+            echo "|----------|--------|"
+            echo "| Android | $ANDROID_STATUS |"
+            echo "| iOS | $IOS_STATUS |"
+            echo "| Linux | $LINUX_STATUS |"
+            echo "| Windows | $WINDOWS_STATUS |"
+            echo "| Web | $WEB_STATUS |"
             echo ""
             echo "## Available Artifacts"
             echo ""
@@ -447,25 +420,3 @@ jobs:
               echo "⚠️ No artifacts were created"
             fi
           } >> $GITHUB_STEP_SUMMARY
-      
-      - name: Send Telegram notification
-        uses: appleboy/telegram-action@master
-        with:
-          token: ${{ secrets.tgTOKEN }}
-          to: ${{ secrets.tgTO }}
-          message: |
-            🚀 **Flutter Build Report**
-            
-            📦 Репозиторий: ${{ needs.prepare.outputs.repository }}
-            🌿 Ветка: ${{ needs.prepare.outputs.branch }}
-            🏷️ Версия: ${{ github.event.inputs.build_name }} (build ${{ github.event.inputs.build_number }})
-            🔑 Cache Key: ${{ needs.prepare.outputs.cache_key }}
-            
-            **Статусы сборки:**
-            🤖 Android: ${{ needs.build-android.result }}
-            🍎 iOS: ${{ needs.build-ios.result }}
-            🐧 Linux: ${{ needs.build-linux.result }}
-            🪟 Windows: ${{ needs.build-windows.result }}
-            🌐 Web: ${{ needs.build-web.result }}
-            
-            🔗 [Ссылка на сборку](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
