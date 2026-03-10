@@ -25,6 +25,7 @@ on:
 
 env:
   FLUTTER_VERSION: '3.x'
+  # Увеличиваем память для всех Gradle операций
   GRADLE_OPTS: -Xmx6g -Xms4g -XX:MaxMetaspaceSize=1g -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8
   JAVA_OPTS: -Xmx6g -Xms4g -XX:MaxMetaspaceSize=1g
 
@@ -44,12 +45,13 @@ jobs:
       - name: Get repository info
         id: repo
         run: |
-          echo "repository=${GITEA_REPOSITORY}" >> $GITHUB_OUTPUT
-          echo "branch=${GITEA_REF_NAME}" >> $GITHUB_OUTPUT
+          echo "repository=${GITHUB_REPOSITORY}" >> $GITHUB_OUTPUT
+          echo "branch=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
       
       - name: Generate cache key
         id: cache_key
         run: |
+          # Создаем ключ кеша на основе pubspec.lock и важных файлов
           if [ -f "pubspec.lock" ]; then
             CACHE_KEY="${{ runner.os }}-flutter-${{ hashFiles('pubspec.lock') }}"
           else
@@ -61,12 +63,14 @@ jobs:
   build-android:
     needs: prepare
     if: ${{ github.event.inputs.platform == 'all' || github.event.inputs.platform == 'android' }}
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4
     
+      # Ставим Java 17 для Gradle (основная)
       - name: Setup Java
         run: |
+          # Проверяем, установлена ли Java 17
           if ! java -version 2>&1 | grep -q "version \"17"; then
             echo "Java 17 not found, installing..."
             sudo apt update
@@ -75,7 +79,11 @@ jobs:
             echo "Java 17 already installed"
           fi
           
+          # Устанавливаем JAVA_HOME
           echo "JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64" >> $GITHUB_ENV
+          echo "JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64" >> ~/.bashrc
+          
+          # Проверяем версию
           java -version
           javac -version
             
@@ -86,7 +94,7 @@ jobs:
           build-tools-version: '34.0.0'
         
       - name: Setup Flutter
-        uses: actions/flutter-action@v2
+        uses: actions/setup-flutter@v4
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: 'stable'
@@ -103,11 +111,16 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
     
+      # Обновляем receive_sharing_intent до последней версии
       - name: Update receive_sharing_intent
-        run: flutter pub upgrade receive_sharing_intent
+        run: |
+          # Форсируем последнюю версию плагина
+          flutter pub upgrade receive_sharing_intent
     
+      # Конфигурируем для совместимости
       - name: Configure compatibility
         run: |
+          # Создаем gradle.properties с явным указанием Java для компиляции
           mkdir -p ~/.gradle
           cat > ~/.gradle/gradle.properties << EOF
           org.gradle.jvmargs=-Xmx4608m -XX:MaxMetaspaceSize=512m -Dfile.encoding=UTF-8
@@ -116,35 +129,61 @@ jobs:
           org.gradle.workers.max=2
           android.useAndroidX=true
           android.enableJetifier=true
+        
+          # Явно указываем Java 11 для компиляции Kotlin/Java кода
+          # но Gradle сам остается на Java 17
           kotlin.jvm.target=11
           EOF
         
+          # Патчим build.gradle.kts если нужно
           if [ -f "android/app/build.gradle.kts" ]; then
+            # Добавляем совместимость в kotlinOptions
             sed -i '/android {/a \ \ \ \ compileOptions {\n\ \ \ \ \ \ \ \ sourceCompatibility = JavaVersion.VERSION_11\n\ \ \ \ \ \ \ \ targetCompatibility = JavaVersion.VERSION_11\n\ \ \ \ }\n\ \ \ \ kotlinOptions {\n\ \ \ \ \ \ \ \ jvmTarget = "11"\n\ \ \ \ }' android/app/build.gradle.kts
           fi
     
+      # Пробуем собрать
       - name: Build Android APK
         run: flutter build apk --release
     
+      # Если упало - пробуем с форсированной совместимостью
       - name: Fallback with compatibility flags
         if: failure()
         run: |
+          # Пробуем явно указать Java 11 для тасков
           cd android
-          ./gradlew assembleRelease \
-            -Dorg.gradle.java.home=/usr/lib/jvm/java-11-openjdk-amd64 \
+          ./gradlew assembleDebug \
+            -Dorg.gradle.java.home=/opt/hostedtoolcache/Java_Zulu_jdk/11.0.30-7/x64 \
             -Pkotlin.jvm.target=11 \
             --max-workers=2 \
             --no-daemon
     
-      - name: Upload Android artifacts
+      # Загрузка артефактов в Gitea Releases
+      - name: Upload Android artifacts to Gitea
         if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: android-build-${{ github.event.inputs.build_name }}-${{ github.event.inputs.build_number }}
-          path: |
-            build/app/outputs/flutter-apk/*.apk
-            android/app/build/outputs/apk/**/*.apk
-          retention-days: 7
+        run: |
+          # Устанавливаем curl если не установлен
+          if ! command -v curl &> /dev/null; then
+            sudo apt-get update && sudo apt-get install -y curl
+          fi
+          
+          # Создаем временную директорию для артефактов
+          mkdir -p artifacts/android
+          
+          # Копируем все найденные APK файлы
+          find . -name "*.apk" -exec cp {} artifacts/android/ \;
+          
+          # Создаем архив для загрузки
+          cd artifacts
+          zip -r "android-build-${{ github.event.inputs.build_name }}-${{ github.event.inputs.build_number }}.zip" android/
+          
+          # Загружаем артефакт на Gitea
+          if [ -f "android-build-${{ github.event.inputs.build_name }}-${{ github.event.inputs.build_number }}.zip" ]; then
+            curl -X POST \
+              -H "Authorization: token ${{ secrets.GITEA_TOKEN }}" \
+              -H "Content-Type: multipart/form-data" \
+              -F "file=@android-build-${{ github.event.inputs.build_name }}-${{ github.event.inputs.build_number }}.zip" \
+              "${{ vars.GITEA_URL }}/api/v1/repos/${{ github.repository }}/releases"
+          fi
 
   build-ios:
     needs: prepare
@@ -154,7 +193,7 @@ jobs:
       - uses: actions/checkout@v4
       
       - name: Setup Flutter
-        uses: actions/flutter-action@v2
+        uses: actions/setup-flutter@v4
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: 'stable'
@@ -193,20 +232,25 @@ jobs:
       
       - name: Build iOS (debug, no codesign)
         run: |
-          flutter build ios --release --no-codesign \
-            --verbose
+          flutter build ios --release --no-codesign --verbose
       
       - name: Create iOS artifact archive
         run: |
           cd build/ios/iphoneos
           zip -r ../../../ios-build.zip Runner.app
       
-      - name: Upload iOS artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: ios-build-${{ github.event.inputs.build_name }}-${{ github.event.inputs.build_number }}
-          path: ios-build.zip
-          retention-days: 7
+      # Загрузка артефактов в Gitea Releases
+      - name: Upload iOS artifacts to Gitea
+        if: always()
+        run: |
+          if [ -f "ios-build.zip" ]; then
+            curl -X POST \
+              -H "Authorization: token ${{ secrets.GITEA_TOKEN }}" \
+              -H "Content-Type: multipart/form-data" \
+              -F "file=@ios-build.zip" \
+              -F "name=ios-build-${{ github.event.inputs.build_name }}-${{ github.event.inputs.build_number }}.zip" \
+              "${{ vars.GITEA_URL }}/api/v1/repos/${{ github.repository }}/releases"
+          fi
 
   build-linux:
     needs: prepare
@@ -249,7 +293,7 @@ jobs:
             libgl1-mesa-dev
           
       - name: Setup Flutter
-        uses: actions/flutter-action@v2
+        uses: actions/setup-flutter@v4
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: 'stable'
@@ -271,14 +315,19 @@ jobs:
             cd build/linux/x64/debug/bundle
             tar -czf ../../../../../linux-build.tar.gz .
           fi
-          
-      - name: Upload Linux artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: linux-build-${{ github.event.inputs.build_name }}-${{ github.event.inputs.build_number }}
-          path: linux-build.tar.gz
-          retention-days: 7
-          if-no-files-found: ignore
+      
+      # Загрузка артефактов в Gitea Releases
+      - name: Upload Linux artifacts to Gitea
+        if: always()
+        run: |
+          if [ -f "linux-build.tar.gz" ]; then
+            curl -X POST \
+              -H "Authorization: token ${{ secrets.GITEA_TOKEN }}" \
+              -H "Content-Type: multipart/form-data" \
+              -F "file=@linux-build.tar.gz" \
+              -F "name=linux-build-${{ github.event.inputs.build_name }}-${{ github.event.inputs.build_number }}.tar.gz" \
+              "${{ vars.GITEA_URL }}/api/v1/repos/${{ github.repository }}/releases"
+          fi
 
   build-windows:
     needs: prepare
@@ -300,7 +349,7 @@ jobs:
             ${{ runner.os }}-flutter-
       
       - name: Setup Flutter
-        uses: actions/flutter-action@v2
+        uses: actions/setup-flutter@v4
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: 'stable'
@@ -316,12 +365,23 @@ jobs:
       - name: Build Windows (debug)
         run: flutter build windows --release
         
-      - name: Upload Windows artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: windows-build-${{ github.event.inputs.build_name }}-${{ github.event.inputs.build_number }}
-          path: build/windows/x64/runner/Release/
-          retention-days: 7
+      - name: Create Windows archive
+        run: |
+          Compress-Archive -Path build/windows/x64/runner/Debug/* -DestinationPath windows-build.zip
+      
+      # Загрузка артефактов в Gitea Releases
+      - name: Upload Windows artifacts to Gitea
+        if: always()
+        shell: bash
+        run: |
+          if [ -f "windows-build.zip" ]; then
+            curl -X POST \
+              -H "Authorization: token ${{ secrets.GITEA_TOKEN }}" \
+              -H "Content-Type: multipart/form-data" \
+              -F "file=@windows-build.zip" \
+              -F "name=windows-build-${{ github.event.inputs.build_name }}-${{ github.event.inputs.build_number }}.zip" \
+              "${{ vars.GITEA_URL }}/api/v1/repos/${{ github.repository }}/releases"
+          fi
 
   build-web:
     needs: prepare
@@ -343,7 +403,7 @@ jobs:
             ${{ runner.os }}-flutter-
       
       - name: Setup Flutter
-        uses: actions/flutter-action@v2
+        uses: actions/setup-flutter@v4
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: 'stable'
@@ -356,68 +416,41 @@ jobs:
       - name: Build Web (debug)
         run: flutter build web --release
         
-      - name: Upload Web artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: web-build-${{ github.event.inputs.build_name }}-${{ github.event.inputs.build_number }}
-          path: build/web/
-          retention-days: 7
+      - name: Create Web archive
+        run: |
+          cd build/web
+          zip -r ../../web-build.zip .
+      
+      # Загрузка артефактов в Gitea Releases
+      - name: Upload Web artifacts to Gitea
+        if: always()
+        run: |
+          if [ -f "web-build.zip" ]; then
+            curl -X POST \
+              -H "Authorization: token ${{ secrets.GITEA_TOKEN }}" \
+              -H "Content-Type: multipart/form-data" \
+              -F "file=@web-build.zip" \
+              -F "name=web-build-${{ github.event.inputs.build_name }}-${{ github.event.inputs.build_number }}.zip" \
+              "${{ vars.GITEA_URL }}/api/v1/repos/${{ github.repository }}/releases"
+          fi
 
   summary:
     needs: [prepare, build-android, build-ios, build-linux, build-windows, build-web]
     if: always()
     runs-on: ubuntu-latest
     steps:
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts/
-          
-      - name: Create build summary
+      - name: Send notification (optional)
         run: |
-          ANDROID_STATUS="${{ needs.build-android.result }}"
-          IOS_STATUS="${{ needs.build-ios.result }}"
-          LINUX_STATUS="${{ needs.build-linux.result }}"
-          WINDOWS_STATUS="${{ needs.build-windows.result }}"
-          WEB_STATUS="${{ needs.build-web.result }}"
-          
-          if [[ "$ANDROID_STATUS" == "success" || "$IOS_STATUS" == "success" || "$LINUX_STATUS" == "success" || "$WINDOWS_STATUS" == "success" || "$WEB_STATUS" == "success" ]]; then
-            if [[ "$ANDROID_STATUS" == "success" && "$IOS_STATUS" == "success" && "$LINUX_STATUS" == "success" && "$WINDOWS_STATUS" == "success" && "$WEB_STATUS" == "success" ]]; then
-              OVERALL_STATUS="✅ Fully successful"
-            else
-              OVERALL_STATUS="⚠️ Partially successful"
-            fi
-          else
-            OVERALL_STATUS="❌ All builds failed"
-          fi
-          
-          {
-            echo "# Build Complete"
-            echo ""
-            echo "## Repository Information"
-            echo "- Repository: ${{ needs.prepare.outputs.repository }}"
-            echo "- Branch: ${{ needs.prepare.outputs.branch }}"
-            echo "- Build Name: ${{ github.event.inputs.build_name }}"
-            echo "- Build Number: ${{ github.event.inputs.build_number }}"
-            echo "- Overall Status: $OVERALL_STATUS"
-            echo "- Cache Key: ${{ needs.prepare.outputs.cache_key }}"
-            echo ""
-            echo "## Build Status"
-            echo ""
-            echo "| Platform | Status |"
-            echo "|----------|--------|"
-            echo "| Android | $ANDROID_STATUS |"
-            echo "| iOS | $IOS_STATUS |"
-            echo "| Linux | $LINUX_STATUS |"
-            echo "| Windows | $WINDOWS_STATUS |"
-            echo "| Web | $WEB_STATUS |"
-            echo ""
-            echo "## Available Artifacts"
-            echo ""
-            if [ -d "artifacts" ] && [ "$(ls -A artifacts)" ]; then
-              echo "✅ Artifacts created:" >> $GITHUB_STEP_SUMMARY
-              ls -la artifacts/ >> $GITHUB_STEP_SUMMARY
-            else
-              echo "⚠️ No artifacts were created"
-            fi
-          } >> $GITHUB_STEP_SUMMARY
+          echo "Build complete! Artifacts uploaded to Gitea releases"
+          echo ""
+          echo "Repository: ${{ needs.prepare.outputs.repository }}"
+          echo "Branch: ${{ needs.prepare.outputs.branch }}"
+          echo "Build Name: ${{ github.event.inputs.build_name }}"
+          echo "Build Number: ${{ github.event.inputs.build_number }}"
+          echo ""
+          echo "Build Status:"
+          echo "Android: ${{ needs.build-android.result }}"
+          echo "iOS: ${{ needs.build-ios.result }}"
+          echo "Linux: ${{ needs.build-linux.result }}"
+          echo "Windows: ${{ needs.build-windows.result }}"
+          echo "Web: ${{ needs.build-web.result }}"
