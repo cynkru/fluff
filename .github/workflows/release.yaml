@@ -151,7 +151,7 @@ jobs:
         run: |
           # Пробуем явно указать Java 11 для тасков
           cd android
-          ./gradlew assembleDebug \
+          ./gradlew assemblerelease \
             -Dorg.gradle.java.home=/opt/hostedtoolcache/Java_Zulu_jdk/11.0.30-7/x64 \
             -Pkotlin.jvm.target=11 \
             --max-workers=2 \
@@ -211,7 +211,7 @@ jobs:
           cd ios
           pod install --repo-update || pod install --verbose
       
-      - name: Build iOS (debug, no codesign)
+      - name: Build iOS (release, no codesign)
         run: |
           flutter build ios --release --no-codesign \
             --verbose
@@ -285,13 +285,13 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
         
-      - name: Build Linux (debug)
+      - name: Build Linux (release)
         run: flutter build linux --release
         
       - name: Create tar.gz archive
         run: |
-          if [ -d "build/linux/x64/debug/bundle" ]; then
-            cd build/linux/x64/debug/bundle
+          if [ -d "build/linux/x64/release/bundle" ]; then
+            cd build/linux/x64/release/bundle
             tar -czf ../../../../../linux-build.tar.gz .
           fi
           
@@ -336,14 +336,14 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
         
-      - name: Build Windows (debug)
+      - name: Build Windows (release)
         run: flutter build windows --release
         
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4
         with:
           name: windows-build-${{ github.event.inputs.build_name }}-${{ github.event.inputs.build_number }}
-          path: build/windows/x64/runner/Debug/
+          path: build/windows/x64/runner/release/
           retention-days: 7
 
   build-web:
@@ -376,7 +376,7 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
         
-      - name: Build Web (debug)
+      - name: Build Web (release)
         run: flutter build web --release
         
       - name: Upload Web artifacts
