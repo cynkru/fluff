@@ -95,19 +95,6 @@ jobs:
           --build-name=${{ github.event.inputs.build_name }} \
           --build-number=${{ github.event.inputs.build_number }} \
           --no-sound-null-safety
-      
-    # Option 2: If you need signed APK, uncomment and add secrets
-    # - name: Build Android APK (signed)
-    #   env:
-    #     ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-    #     ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-    #     ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-    #     ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-    #   run: |
-    #     echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/keystore.jks
-    #     flutter build apk --release \
-    #       --build-name=${{ github.event.inputs.build_name }} \
-    #       --build-number=${{ github.event.inputs.build_number }}
     
     - name: Upload Android artifacts
       uses: actions/upload-artifact@v4
