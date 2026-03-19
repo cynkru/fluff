@@ -16,7 +16,7 @@ abstract class AppConfig {
   static const String deepLinkPrefix = 'cynk://chat/';
   static const String schemePrefix = 'matrix:';
   static const String pushNotificationsChannelId = 'fluffychat_push';
-  static const String pushNotificationsAppId = 'ru.cynk.fluffychat';
+  static const String pushNotificationsAppId = 'ru.cynk.client';
   static const double borderRadius = 18.0;
   static const double spaceBorderRadius = 11.0;
   static const double columnWidth = 360.0;
