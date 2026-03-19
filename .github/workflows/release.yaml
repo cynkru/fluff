@@ -62,12 +62,12 @@ jobs:
 
   build-android:
     needs: prepare
-    if: ${{ github.event.inputs.platform == 'all' || github.event.inputs.platform == 'android' }}
+    if: ${{ (github.event.inputs.platform == 'all' || github.event.inputs.platform == 'android') || github.event_name == 'release' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
     
-            # Ставим Java 17 для Gradle (основная)
+      # Ставим Java 17 для Gradle (основная)
       - name: Setup Java
         run: |
           # Проверяем, установлена ли Java 17
@@ -141,9 +141,9 @@ jobs:
             sed -i '/android {/a \ \ \ \ compileOptions {\n\ \ \ \ \ \ \ \ sourceCompatibility = JavaVersion.VERSION_11\n\ \ \ \ \ \ \ \ targetCompatibility = JavaVersion.VERSION_11\n\ \ \ \ }\n\ \ \ \ kotlinOptions {\n\ \ \ \ \ \ \ \ jvmTarget = "11"\n\ \ \ \ }' android/app/build.gradle.kts
           fi
     
-      # Пробуем собрать
-      - name: Build Android APK
-        run: flutter build apk --release
+      # Сборка релизной версии
+      - name: Build Android APK (Release)
+        run: flutter build apk --release --build-name=${{ needs.prepare.outputs.build_name }} --build-number=${{ needs.prepare.outputs.build_number }}
     
       # Если упало - пробуем с форсированной совместимостью
       - name: Fallback with compatibility flags
@@ -151,21 +151,20 @@ jobs:
         run: |
           # Пробуем явно указать Java 11 для тасков
           cd android
-          ./gradlew assemblerelease \
+          ./gradlew assembleRelease \
             -Dorg.gradle.java.home=/opt/hostedtoolcache/Java_Zulu_jdk/11.0.30-7/x64 \
             -Pkotlin.jvm.target=11 \
             --max-workers=2 \
             --no-daemon
     
       - name: Upload Android artifacts
-        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: android-build-${{ github.event.inputs.build_name }}-${{ github.event.inputs.build_number }}
+          name: android-build-${{ needs.prepare.outputs.build_name }}-${{ needs.prepare.outputs.build_number }}
           path: |
             build/app/outputs/flutter-apk/*.apk
             android/app/build/outputs/apk/**/*.apk
-          retention-days: 7
+          retention-days: 30  # Увеличиваем срок хранения для релизов
   build-ios:
     needs: prepare
     if: ${{ github.event.inputs.platform == 'all' || github.event.inputs.platform == 'ios' }}
@@ -227,9 +226,6 @@ jobs:
           name: ios-build-${{ github.event.inputs.build_name }}-${{ github.event.inputs.build_number }}
           path: ios-build.zip
           retention-days: 7
-
-  # Остальные jobs (build-linux, build-windows, build-web) остаются без изменений
-  # с добавлением улучшенного кеширования по аналогии с iOS
 
   build-linux:
     needs: prepare
