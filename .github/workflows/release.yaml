@@ -58,48 +58,63 @@ jobs:
           echo "key=$CACHE_KEY" >> $GITHUB_OUTPUT
 
   build-android:
-    needs: prepare
-    if: ${{ github.event.inputs.platform == 'all' || github.event.inputs.platform == 'android' }}
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Setup Java
-        run: |
-          sudo apt update
-          sudo apt install -y openjdk-17-jdk
-          echo "JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64" >> $GITHUB_ENV
-          java -version
-          
-      - name: Setup Android SDK
-        uses: amyu/setup-android@v5
-        with:
-          sdk-version: '34'
-          build-tools-version: '34.0.0'
+  needs: prepare
+  if: ${{ github.event.inputs.platform == 'all' || github.event.inputs.platform == 'android' }}
+  runs-on: ubuntu-latest
+  steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Java
+      run: |
+        sudo apt update
+        sudo apt install -y openjdk-17-jdk
+        echo "JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64" >> $GITHUB_ENV
+        java -version
         
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          channel: 'stable'
-          cache: true
-          cache-key: ${{ needs.prepare.outputs.cache_key }}
+    - name: Setup Android SDK
+      uses: amyu/setup-android@v5
+      with:
+        sdk-version: '34'
+        build-tools-version: '34.0.0'
+      
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: ${{ env.FLUTTER_VERSION }}
+        channel: 'stable'
+        cache: true
+        cache-key: ${{ needs.prepare.outputs.cache_key }}
+  
+    - name: Install dependencies
+      run: flutter pub get
     
-      - name: Install dependencies
-        run: flutter pub get
+    # Option 1: Build unsigned APK (for testing)
+    - name: Build Android APK (unsigned)
+      run: |
+        flutter build apk --release \
+          --build-name=${{ github.event.inputs.build_name }} \
+          --build-number=${{ github.event.inputs.build_number }} \
+          --no-sound-null-safety
+      
+    # Option 2: If you need signed APK, uncomment and add secrets
+    # - name: Build Android APK (signed)
+    #   env:
+    #     ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+    #     ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+    #     ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+    #     ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+    #   run: |
+    #     echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/keystore.jks
+    #     flutter build apk --release \
+    #       --build-name=${{ github.event.inputs.build_name }} \
+    #       --build-number=${{ github.event.inputs.build_number }}
     
-      - name: Build Android APK (Release)
-        run: |
-          flutter build apk --release \
-            --build-name=${{ github.event.inputs.build_name }} \
-            --build-number=${{ github.event.inputs.build_number }}
-    
-      - name: Upload Android artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: android-build-${{ github.event.inputs.build_name }}-${{ github.event.inputs.build_number }}
-          path: build/app/outputs/flutter-apk/*.apk
-          retention-days: 30
+    - name: Upload Android artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: android-build-${{ github.event.inputs.build_name }}-${{ github.event.inputs.build_number }}
+        path: build/app/outputs/flutter-apk/*.apk
+        retention-days: 30
 
   build-ios:
     needs: prepare
