@@ -1,0 +1,219 @@
+name: Matrix уведомления
+
+on:
+  issues:
+    types: [opened, edited, closed, reopened]
+  pull_request_target:
+    types: [opened, edited, closed, reopened, ready_for_review]
+  discussion:
+    types: [created, answered, labeled]
+
+jobs:
+  notify:
+    if: |
+      ${{ 
+        (github.event_name == 'issues' && github.event.issue.user.login != 'krille-chan') ||
+        (github.event_name == 'pull_request_target' && github.event.pull_request.user.login != 'krille-chan') ||
+        (github.event_name == 'discussion' && github.event.discussion.user.login != 'krille-chan')
+      }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Отправка уведомления в Matrix комнату
+        env:
+          HOMESERVER: ${{ secrets.MATRIX_HOMESERVER }}
+          ACCESS_TOKEN: ${{ secrets.MATRIX_ACCESS_TOKEN }}
+          ROOM_ID: ${{ secrets.MATRIX_ROOM_ID }}
+          EVENT_NAME: ${{ github.event_name }}
+          ACTION: ${{ github.event.action }}
+          
+          # Issue variables
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_URL: ${{ github.event.issue.html_url }}
+          ISSUE_LABELS: ${{ join(github.event.issue.labels.*.name, ', ') }}
+          ISSUE_AUTHOR: ${{ github.event.issue.user.login }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          
+          # PR variables
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          PR_LABELS: ${{ join(github.event.pull_request.labels.*.name, ', ') }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_STATE: ${{ github.event.pull_request.state }}
+          
+          # Discussion variables
+          DISCUSSION_TITLE: ${{ github.event.discussion.title }}
+          DISCUSSION_URL: ${{ github.event.discussion.html_url }}
+          DISCUSSION_AUTHOR: ${{ github.event.discussion.user.login }}
+          DISCUSSION_BODY: ${{ github.event.discussion.body }}
+          DISCUSSION_CATEGORY: ${{ github.event.discussion.category.name }}
+          
+          REPO_NAME: ${{ github.repository }}
+          
+        run: |
+          # Функция для обрезки текста
+          truncate_text() {
+            local text="$1"
+            local max_length="${2:-200}"
+            if [ ${#text} -gt $max_length ]; then
+              echo "${text:0:$max_length}..."
+            else
+              echo "$text"
+            fi
+          }
+          
+          # Определение типа события и формирование сообщения
+          if [ "${EVENT_NAME}" = "issues" ]; then
+            case "${ACTION}" in
+              "opened")
+                EMOJI="📝"
+                PREFIX="Новая задача"
+                ;;
+              "edited")
+                EMOJI="✏️"
+                PREFIX="Задача отредактирована"
+                ;;
+              "closed")
+                EMOJI="✅"
+                PREFIX="Задача закрыта"
+                ;;
+              "reopened")
+                EMOJI="🔄"
+                PREFIX="Задача переоткрыта"
+                ;;
+              *)
+                EMOJI="📌"
+                PREFIX="Изменение задачи"
+                ;;
+            esac
+            TITLE="${ISSUE_TITLE}"
+            URL="${ISSUE_URL}"
+            LABELS="${ISSUE_LABELS}"
+            AUTHOR="${ISSUE_AUTHOR}"
+            BODY="${ISSUE_BODY}"
+            
+          elif [ "${EVENT_NAME}" = "pull_request_target" ]; then
+            case "${ACTION}" in
+              "opened")
+                EMOJI="🔀"
+                PREFIX="Новый запрос на слияние"
+                ;;
+              "edited")
+                EMOJI="✏️"
+                PREFIX="Запрос на слияние отредактирован"
+                ;;
+              "closed")
+                if [ "${PR_STATE}" = "merged" ]; then
+                  EMOJI="🎉"
+                  PREFIX="Запрос на слияние принят"
+                else
+                  EMOJI="❌"
+                  PREFIX="Запрос на слияние отклонён"
+                fi
+                ;;
+              "reopened")
+                EMOJI="🔄"
+                PREFIX="Запрос на слияние переоткрыт"
+                ;;
+              "ready_for_review")
+                EMOJI="👀"
+                PREFIX="Готов к проверке"
+                ;;
+              *)
+                EMOJI="🔀"
+                PREFIX="Изменение PR"
+                ;;
+            esac
+            TITLE="${PR_TITLE}"
+            URL="${PR_URL}"
+            LABELS="${PR_LABELS}"
+            AUTHOR="${PR_AUTHOR}"
+            BODY="${PR_BODY}"
+            
+          elif [ "${EVENT_NAME}" = "discussion" ]; then
+            case "${ACTION}" in
+              "created")
+                EMOJI="💬"
+                PREFIX="Новое обсуждение"
+                ;;
+              "answered")
+                EMOJI="✅"
+                PREFIX="Получен ответ"
+                ;;
+              "labeled")
+                EMOJI="🏷️"
+                PREFIX="Добавлена метка"
+                ;;
+              *)
+                EMOJI="💭"
+                PREFIX="Обновление обсуждения"
+                ;;
+            esac
+            TITLE="${DISCUSSION_TITLE}"
+            URL="${DISCUSSION_URL}"
+            AUTHOR="${DISCUSSION_AUTHOR}"
+            BODY="${DISCUSSION_BODY}"
+            CATEGORY="${DISCUSSION_CATEGORY}"
+            fi
+          
+          # Формирование ссылки на автора
+          AUTHOR_URL="https://github.com/${AUTHOR}"
+          
+          # Формирование plain text сообщения
+          PLAIN="${EMOJI} ${PREFIX} в ${REPO_NAME}\n"
+          PLAIN="${PLAIN}👤 Автор: ${AUTHOR}\n"
+          PLAIN="${PLAIN}📌 ${TITLE}\n"
+          PLAIN="${PLAIN}🔗 ${URL}"
+          
+          # Формирование HTML сообщения
+          HTML="<h3>${EMOJI} ${PREFIX}</h3>"
+          HTML="${HTML}<p><b>Репозиторий:</b> <a href='https://github.com/${REPO_NAME}'>${REPO_NAME}</a></p>"
+          HTML="${HTML}<p><b>Название:</b> <a href='${URL}'>$(echo "$TITLE" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g')</a></p>"
+          HTML="${HTML}<p>👤 <b>Автор:</b> <a href='${AUTHOR_URL}'>${AUTHOR}</a></p>"
+          
+          # Добавление категории для обсуждений
+          if [ -n "${CATEGORY}" ]; then
+            HTML="${HTML}<p>📂 <b>Категория:</b> ${CATEGORY}</p>"
+          fi
+          
+          # Добавление меток
+          if [ -n "${LABELS}" ]; then
+            HTML="${HTML}<p>🏷️ <b>Метки:</b> ${LABELS}</p>"
+          fi
+          
+          # Добавление описания (обрезанного)
+          if [ -n "${BODY}" ]; then
+            TRUNCATED_BODY=$(truncate_text "$BODY" 300)
+            ESCAPED_BODY=$(echo "$TRUNCATED_BODY" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g' | tr '\n' ' ')
+            HTML="${HTML}<p>📄 <b>Описание:</b><br/><i>${ESCAPED_BODY}</i></p>"
+          fi
+          
+          # Добавление временной метки
+          TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          HTML="${HTML}<p><small>🕐 ${TIMESTAMP}</small></p>"
+          
+          # Генерация уникального ID транзакции
+          TXN_ID=$(date +%s%N)
+          
+          # Отправка сообщения
+          echo "Отправка уведомления в Matrix..."
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X PUT \
+            "${HOMESERVER}/_matrix/client/v3/rooms/${ROOM_ID}/send/m.room.message/${TXN_ID}" \
+            -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "$(jq -n \
+              --arg body "$PLAIN" \
+              --arg html "$HTML" \
+              '{
+                "msgtype": "m.notice",
+                "body": $body,
+                "format": "org.matrix.custom.html",
+                "formatted_body": $html
+              }')")
+          
+          if [ "$HTTP_CODE" = "200" ]; then
+            echo "✅ Уведомление успешно отправлено (код: $HTTP_CODE)"
+          else
+            echo "❌ Ошибка отправки уведомления (код: $HTTP_CODE)"
+            exit 1
+          fi
