@@ -1,7 +1,7 @@
-![Screenshot](https://github.com/stastpru/fluff/blob/main/assets/banner_transparent.png?raw=true)
+![Screenshot](https://github.com/cynkru/fluff/blob/main/assets/banner_transparent.png?raw=true)
 
 # Fluff
-[![Build Flutter Release (Manual)](https://github.com/stastpru/fluff/actions/workflows/release.yaml/badge.svg)](https://github.com/stastpru/fluff/actions/workflows/release.yaml)
+[![Build Flutter Release (Manual)](https://github.com/cynkru/fluff/actions/workflows/release.yaml/badge.svg)](https://github.com/stastpru/fluff/actions/workflows/release.yaml)
 ![GitHub License](https://img.shields.io/github/license/stastpru/fluff)
 ![GitHub Release](https://img.shields.io/github/v/release/stastpru/fluff)
 
