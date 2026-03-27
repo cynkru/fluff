@@ -228,16 +228,13 @@ jobs:
           path: ios-build.zip
           retention-days: 7
 
-  # Остальные jobs (build-linux, build-windows, build-web) остаются без изменений
-  # с добавлением улучшенного кеширования по аналогии с iOS
-
   build-linux:
     needs: prepare
     if: ${{ github.event.inputs.platform == 'all' || github.event.inputs.platform == 'linux' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Cache Flutter dependencies
         uses: actions/cache@v4
         with:
@@ -249,7 +246,7 @@ jobs:
           key: ${{ needs.prepare.outputs.cache_key }}
           restore-keys: |
             ${{ runner.os }}-flutter-
-      
+
       - name: Install all Linux dependencies
         run: |
           sudo apt-get update
@@ -269,8 +266,17 @@ jobs:
             libxcursor-dev \
             libxi-dev \
             libxinerama-dev \
-            libgl1-mesa-dev
-          
+            libgl1-mesa-dev \
+            libegl1-mesa-dev \
+            libblkid-dev \
+            libmount-dev \
+            libglib2.0-dev \
+            libgdk-pixbuf2.0-dev \
+            libgtk-3-0
+
+          # Создаём необходимые директории для native_assets
+          mkdir -p build/native_assets/linux
+
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
@@ -278,23 +284,40 @@ jobs:
           channel: 'stable'
           cache: true
           cache-key: ${{ needs.prepare.outputs.cache_key }}
-          
+
       - name: Enable Linux desktop
         run: flutter config --enable-linux-desktop
-        
+
       - name: Install dependencies
         run: flutter pub get
-        
+
+      - name: Clean previous build
+        run: |
+          flutter clean
+          rm -rf linux/
+          rm -rf build/
+
+      - name: Recreate Linux project
+        run: |
+          flutter create --platforms=linux .
+          flutter pub get
+
       - name: Build Linux (debug)
-        run: flutter build linux --debug
-        
+        run: |
+          # Убеждаемся, что директория существует перед сборкой
+          mkdir -p build/native_assets/linux
+          flutter build linux --debug --verbose
+
       - name: Create tar.gz archive
         run: |
           if [ -d "build/linux/x64/debug/bundle" ]; then
             cd build/linux/x64/debug/bundle
             tar -czf ../../../../../linux-build.tar.gz .
+          elif [ -d "build/linux/x64/release/bundle" ]; then
+            cd build/linux/x64/release/bundle
+            tar -czf ../../../../../linux-build.tar.gz .
           fi
-          
+
       - name: Upload Linux artifacts
         uses: actions/upload-artifact@v4
         with:
