@@ -291,11 +291,14 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Clean previous build
-        run: |
-          flutter clean
-          rm -rf linux/
-          rm -rf build/
+      #- name: Clean previous build
+      #  run: |
+      #    flutter clean
+      #    rm -rf linux/
+      #    rm -rf build/
+
+      - name: Create dirs
+        run: mkdir -p build/native_assets/linux
 
       - name: Recreate Linux project
         run: |
