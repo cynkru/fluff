@@ -5,7 +5,7 @@ import 'package:cynk/widgets/layouts/login_scaffold.dart';
 import 'register.dart';
 
 class RegisterWithTokenView extends StatelessWidget {
-  final RegisterWithTokenController controller;
+  final RegisterController controller;
 
   const RegisterWithTokenView(this.controller, {super.key});
 

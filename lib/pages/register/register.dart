@@ -16,10 +16,10 @@ class RegisterWithToken extends StatefulWidget {
   const RegisterWithToken({required this.client, super.key});
 
   @override
-  RegisterWithTokenController createState() => RegisterWithTokenController();
+  RegisterController createState() => RegisterController();
 }
 
-class RegisterWithTokenController extends State<RegisterWithToken> {
+class RegisterController extends State<RegisterWithToken> {
   final TextEditingController tokenController = TextEditingController();
   final TextEditingController usernameController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
@@ -88,7 +88,8 @@ class RegisterWithTokenController extends State<RegisterWithToken> {
         username: usernameController.text,
         password: passwordController.text,
         initialDeviceDisplayName: PlatformInfos.clientName,
-        auth: AuthenticationRegistrationToken(
+        auth: Authentication(
+          type: 'm.login.token',
           token: tokenController.text,
         ),
       );
