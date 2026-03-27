@@ -3023,7 +3023,7 @@
     "setupChatBackup": "Настроить резервную копию чата",
     "createNewAccount": "Создать новый аккаунт",
     "theProcessWasCanceled": "Процесс был отменен.",
-    "noMoreResultsFound": "Ничего не найдено"
+    "noMoreResultsFound": "Ничего не найдено",
     "pleaseEnterRegistrationToken": "Введите токен регистрации",
     "passwordsDoNotMatch": "Пароли не совпадают"
 }
