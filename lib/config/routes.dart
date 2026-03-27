@@ -39,6 +39,7 @@ import 'package:cynk/widgets/layouts/two_column_layout.dart';
 import 'package:cynk/widgets/log_view.dart';
 import 'package:cynk/widgets/matrix.dart';
 import 'package:cynk/widgets/share_scaffold_dialog.dart';
+import 'package:cynk/pages/register_with_token/register.dart';
 
 abstract class AppRoutes {
   static FutureOr<String?> loggedInRedirect(
@@ -77,6 +78,15 @@ abstract class AppRoutes {
             context,
             state,
             Login(client: state.extra as Client),
+          ),
+          redirect: loggedInRedirect,
+        ),
+        GoRoute(
+          path: 'register',
+          pageBuilder: (context, state) => defaultPageBuilder(
+            context,
+            state,
+            RegisterWithToken(client: state.extra as Client),
           ),
           redirect: loggedInRedirect,
         ),

@@ -145,6 +145,37 @@ class IntroPage extends StatelessWidget {
                             },
                             child: Text("Войти"),
                           ),
+                          ElevatedButton(
+                            onPressed: () async {
+                              final matrix = Matrix.of(context);
+                              final client = await matrix.getLoginClient();
+                              
+                              // Если клиент не получен - показываем ошибку
+                              if (client == null) {
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Ошибка подключения к серверу'),
+                                    ),
+                                  );
+                                }
+                                return;
+                              }
+                              
+                              // Убедимся что homeserver установлен
+                              if (client.homeserver == null) {
+                                client.homeserver = Uri.parse('https://matrix.cynk.ru');
+                              }
+                              
+                              if (context.mounted) {
+                                context.go(
+                                  '${GoRouterState.of(context).uri.path}/register',
+                                  extra: client,
+                                );
+                              }
+                            },
+                            child: Text("Зарегистрироваться"),
+                          ),
                         ],
                       ),
                     ),
