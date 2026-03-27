@@ -39,7 +39,7 @@ import 'package:cynk/widgets/layouts/two_column_layout.dart';
 import 'package:cynk/widgets/log_view.dart';
 import 'package:cynk/widgets/matrix.dart';
 import 'package:cynk/widgets/share_scaffold_dialog.dart';
-import 'package:cynk/pages/register_with_token/register.dart';
+import 'package:cynk/pages/register/register.dart';
 
 abstract class AppRoutes {
   static FutureOr<String?> loggedInRedirect(

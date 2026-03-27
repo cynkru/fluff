@@ -307,7 +307,7 @@ jobs:
         run: |
           # Убеждаемся, что директория существует перед сборкой
           mkdir -p build/native_assets/linux
-          flutter build linux --debug --verbose
+          flutter build linux --debug
 
       - name: Create tar.gz archive
         run: |
