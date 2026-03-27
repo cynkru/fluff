@@ -145,6 +145,15 @@ class IntroPage extends StatelessWidget {
                             },
                             child: Text("Войти"),
                           ),
+                        ],
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(32.0),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
                           ElevatedButton(
                             onPressed: () async {
                               final matrix = Matrix.of(context);
