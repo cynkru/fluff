@@ -297,14 +297,12 @@ jobs:
       #    rm -rf linux/
       #    rm -rf build/
 
-      - name: Create dirs
-        run: mkdir -p build/native_assets/linux
-
       - name: Recreate Linux project
         run: |
           flutter create --platforms=linux .
           flutter pub get
-
+      - name: Create dirs
+        run: mkdir -p build/native_assets/linux
       - name: Build Linux (debug)
         run: |
           # Убеждаемся, что директория существует перед сборкой
