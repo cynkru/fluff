@@ -47,24 +47,24 @@ class RegisterController extends State<RegisterWithToken> {
       username = '@$username:matrix.cynk.ru';
       usernameController.text = username;
     }
-    
+
     // Валидация
     bool hasError = false;
-    
+
     if (tokenController.text.isEmpty) {
       setState(() => tokenError = L10n.of(context).pleaseEnterRegistrationToken);
       hasError = true;
     } else {
       setState(() => tokenError = null);
     }
-    
+
     if (usernameController.text.isEmpty) {
       setState(() => usernameError = L10n.of(context).pleaseEnterYourUsername);
       hasError = true;
     } else {
       setState(() => usernameError = null);
     }
-    
+
     if (passwordController.text.isEmpty) {
       setState(() => passwordError = L10n.of(context).pleaseEnterYourPassword);
       hasError = true;
@@ -82,18 +82,18 @@ class RegisterController extends State<RegisterWithToken> {
     try {
       final matrix = Matrix.of(context);
       final client = await matrix.getLoginClient();
-      
-      // Используем токен регистрации
+
+      // Используем токен регистрации — просто Map
       final registrationResponse = await client.register(
         username: usernameController.text,
         password: passwordController.text,
         initialDeviceDisplayName: PlatformInfos.clientName,
-        auth: Authentication(
-          type: 'm.login.token',
-          token: tokenController.text,
-        ),
+        auth: {
+          'type': 'm.login.token',
+          'token': tokenController.text,
+        },
       );
-      
+
       if (mounted && registrationResponse != null) {
         // После успешной регистрации выполняем логин
         await client.login(
@@ -102,7 +102,7 @@ class RegisterController extends State<RegisterWithToken> {
           password: passwordController.text,
           initialDeviceDisplayName: PlatformInfos.clientName,
         );
-        
+
         if (mounted) {
           context.go('/backup');
         }
