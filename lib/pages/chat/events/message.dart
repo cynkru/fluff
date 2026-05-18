@@ -79,6 +79,7 @@ class Message extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final usePlainStyle = AppSettings.bubbleStyle.value;
 
     if (!{
       EventTypes.Message,
@@ -234,7 +235,9 @@ class Message extends StatelessWidget {
           ),
           child: Column(
             mainAxisSize: .min,
-            crossAxisAlignment: ownMessage ? .end : .start,
+            crossAxisAlignment: usePlainStyle
+                ? (ownMessage ? CrossAxisAlignment.end : CrossAxisAlignment.start)
+                : (ownMessage ? CrossAxisAlignment.end : CrossAxisAlignment.start),
             children: <Widget>[
               if (displayTime || selected)
                 Padding(
@@ -379,10 +382,12 @@ class Message extends StatelessWidget {
                                     ),
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: .start,
+                                      crossAxisAlignment: usePlainStyle
+                                          ? (ownMessage ? CrossAxisAlignment.end : CrossAxisAlignment.start)
+                                          : CrossAxisAlignment.start,
                                       mainAxisSize: .min,
                                       children: [
-                                        if (!nextEventSameSender)
+                                        if (!nextEventSameSender && !usePlainStyle)
                                           Padding(
                                             padding: const EdgeInsets.only(
                                               left: 8.0,
@@ -440,86 +445,120 @@ class Message extends StatelessWidget {
                                                     },
                                                   ),
                                           ),
-                                        Container(
-                                          alignment: alignment,
-                                          padding: const EdgeInsets.only(
-                                            left: 8,
+                                        if (!nextEventSameSender && usePlainStyle && !ownMessage)
+                                          Padding(
+                                            padding: const EdgeInsets.only(
+                                              left: 8.0,
+                                              bottom: 4,
+                                            ),
+                                            child: FutureBuilder<User?>(
+                                              future: event.fetchSenderUser(),
+                                              builder: (context, snapshot) {
+                                                final displayname =
+                                                    snapshot.data?.calcDisplayname() ??
+                                                    event.senderFromMemoryOrFallback.calcDisplayname();
+                                                return Text(
+                                                  displayname,
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: displayname.color,
+                                                  ),
+                                                );
+                                              },
+                                            ),
                                           ),
-                                          child: GestureDetector(
-                                            onLongPress: longPressSelect
-                                                ? null
-                                                : () {
-                                                    HapticFeedback.heavyImpact();
-                                                    onSelect(event);
-                                                  },
-                                            child: AnimatedOpacity(
-                                              opacity: animateIn
-                                                  ? 0
-                                                  : event.messageType ==
-                                                            MessageTypes
-                                                                .BadEncrypted ||
+                                        GestureDetector(
+                                          onLongPress: longPressSelect
+                                              ? null
+                                              : () {
+                                                  HapticFeedback.heavyImpact();
+                                                  onSelect(event);
+                                                },
+                                          child: AnimatedOpacity(
+                                            opacity: animateIn
+                                                ? 0
+                                                : event.messageType ==
+                                                          MessageTypes
+                                                              .BadEncrypted ||
                                                         event.status.isSending
                                                   ? 0.5
                                                   : 1,
-                                              duration: FluffyThemes
-                                                  .animationDuration,
-                                              curve:
-                                                  FluffyThemes.animationCurve,
-                                              child: Container(
-                                                decoration: BoxDecoration(
-                                                  color: noBubble
-                                                      ? Colors.transparent
-                                                      : color,
-                                                  borderRadius: borderRadius,
-                                                ),
-                                                clipBehavior: Clip.antiAlias,
-                                                child: BubbleBackground(
-                                                  colors: colors,
-                                                  ignore:
-                                                      noBubble ||
-                                                      !ownMessage ||
-                                                      MediaQuery.highContrastOf(
-                                                        context,
-                                                      ),
-                                                  scrollController:
-                                                      scrollController,
-                                                  child: Container(
-                                                    decoration: BoxDecoration(
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                            AppConfig
-                                                                .borderRadius,
-                                                          ),
+                                            duration: FluffyThemes
+                                                .animationDuration,
+                                            curve:
+                                                FluffyThemes.animationCurve,
+                                            child: usePlainStyle
+                                                ? Padding(
+                                                    padding: const EdgeInsets.symmetric(
+                                                      horizontal: 8.0,
+                                                      vertical: 4.0,
                                                     ),
-                                                    constraints:
-                                                        const BoxConstraints(
-                                                          maxWidth:
-                                                              FluffyThemes
-                                                                  .columnWidth *
-                                                              1.5,
+                                                    child: MessageContent(
+                                                      displayEvent,
+                                                      textColor: textColor,
+                                                      linkColor: linkColor,
+                                                      onInfoTab: onInfoTab,
+                                                      borderRadius: borderRadius,
+                                                      timeline: timeline,
+                                                      selected: selected,
+                                                    ),
+                                                  )
+                                                : Container(
+                                                    decoration: BoxDecoration(
+                                                      color: noBubble
+                                                          ? Colors.transparent
+                                                          : color,
+                                                      borderRadius: borderRadius,
+                                                    ),
+                                                    clipBehavior: Clip.antiAlias,
+                                                    child: BubbleBackground(
+                                                      colors: colors,
+                                                      ignore:
+                                                          noBubble ||
+                                                          !ownMessage ||
+                                                          MediaQuery.highContrastOf(
+                                                            context,
+                                                          ),
+                                                      scrollController:
+                                                          scrollController,
+                                                      child: Container(
+                                                        decoration: BoxDecoration(
+                                                          borderRadius:
+                                                              BorderRadius.circular(
+                                                                AppConfig
+                                                                    .borderRadius,
+                                                              ),
                                                         ),
-                                                    child: Column(
-                                                      mainAxisSize: .min,
-                                                      crossAxisAlignment:
-                                                          CrossAxisAlignment
-                                                              .start,
-                                                      children: <Widget>[
-                                                        if (event.inReplyToEventId(
-                                                              includingFallback:
-                                                                  false,
-                                                            ) !=
-                                                            null)
-                                                          FutureBuilder<Event?>(
-                                                            future: event
-                                                                .getReplyEvent(
-                                                                  timeline,
-                                                                ),
-                                                            builder:
-                                                                (
-                                                                  BuildContext
-                                                                  context,
-                                                                  snapshot,
-                                                                ) {
+                                                        constraints:
+                                                            const BoxConstraints(
+                                                              maxWidth:
+                                                                  FluffyThemes
+                                                                      .columnWidth *
+                                                                  1.5,
+                                                            ),
+                                                        child: Column(
+                                                          mainAxisSize: .min,
+                                                          crossAxisAlignment:
+                                                              CrossAxisAlignment
+                                                                  .start,
+                                                          children: <Widget>[
+                                                            if (event.inReplyToEventId(
+                                                                  includingFallback:
+                                                                      false,
+                                                                ) !=
+                                                                null)
+                                                              FutureBuilder<Event?>(
+                                                                future: event
+                                                                    .getReplyEvent(
+                                                                      timeline,
+                                                                    ),
+                                                                builder:
+                                                                    (
+                                                                      BuildContext
+                                                                      context,
+                                                                      snapshot,
+                                                                    ) {
                                                                   final replyEvent =
                                                                       snapshot
                                                                           .hasData
@@ -582,69 +621,68 @@ class Message extends StatelessWidget {
                                                                     ),
                                                                   );
                                                                 },
-                                                          ),
-                                                        MessageContent(
-                                                          displayEvent,
-                                                          textColor: textColor,
-                                                          linkColor: linkColor,
-                                                          onInfoTab: onInfoTab,
-                                                          borderRadius:
-                                                              borderRadius,
-                                                          timeline: timeline,
-                                                          selected: selected,
-                                                        ),
-                                                        if (event
-                                                            .hasAggregatedEvents(
-                                                              timeline,
-                                                              RelationshipTypes
-                                                                  .edit,
-                                                            ))
-                                                          Padding(
-                                                            padding:
-                                                                const EdgeInsets.only(
-                                                                  bottom: 8.0,
-                                                                  left: 16.0,
-                                                                  right: 16.0,
-                                                                ),
-                                                            child: Row(
-                                                              mainAxisSize:
-                                                                  MainAxisSize
-                                                                      .min,
-                                                              spacing: 4.0,
-                                                              children: [
-                                                                Icon(
-                                                                  Icons
-                                                                      .edit_outlined,
-                                                                  color: textColor
-                                                                      .withAlpha(
-                                                                        164,
-                                                                      ),
-                                                                  size: 14,
-                                                                ),
-                                                                Text(
-                                                                  displayEvent
-                                                                      .originServerTs
-                                                                      .localizedTimeShort(
-                                                                        context,
-                                                                      ),
-                                                                  style: TextStyle(
-                                                                    color: textColor
-                                                                        .withAlpha(
-                                                                          164,
-                                                                        ),
-                                                                    fontSize:
-                                                                        11,
-                                                                  ),
-                                                                ),
-                                                              ],
+                                                              ),
+                                                            MessageContent(
+                                                              displayEvent,
+                                                              textColor: textColor,
+                                                              linkColor: linkColor,
+                                                              onInfoTab: onInfoTab,
+                                                              borderRadius:
+                                                                  borderRadius,
+                                                              timeline: timeline,
+                                                              selected: selected,
                                                             ),
-                                                          ),
-                                                      ],
+                                                            if (event
+                                                                .hasAggregatedEvents(
+                                                                  timeline,
+                                                                  RelationshipTypes
+                                                                      .edit,
+                                                                ))
+                                                              Padding(
+                                                                padding:
+                                                                    const EdgeInsets.only(
+                                                                      bottom: 8.0,
+                                                                      left: 16.0,
+                                                                      right: 16.0,
+                                                                    ),
+                                                                child: Row(
+                                                                  mainAxisSize:
+                                                                      MainAxisSize
+                                                                          .min,
+                                                                  spacing: 4.0,
+                                                                  children: [
+                                                                    Icon(
+                                                                      Icons
+                                                                          .edit_outlined,
+                                                                      color: textColor
+                                                                          .withAlpha(
+                                                                            164,
+                                                                          ),
+                                                                      size: 14,
+                                                                    ),
+                                                                    Text(
+                                                                      displayEvent
+                                                                          .originServerTs
+                                                                          .localizedTimeShort(
+                                                                            context,
+                                                                          ),
+                                                                      style: TextStyle(
+                                                                        color: textColor
+                                                                            .withAlpha(
+                                                                              164,
+                                                                            ),
+                                                                        fontSize:
+                                                                            11,
+                                                                      ),
+                                                                    ),
+                                                                  ],
+                                                                ),
+                                                              ),
+                                                          ],
+                                                        ),
+                                                      ),
                                                     ),
                                                   ),
-                                                ),
-                                              ),
-                                            ),
                                           ),
                                         ),
                                         Align(
