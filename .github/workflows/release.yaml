@@ -349,7 +349,7 @@ jobs:
           token: ${{ secrets.tgTOKEN }}
           to: ${{ secrets.tgTO }}
           message: |
-            🚀 **Flutter Build Report**
+            🚀 **Flutter Release Build Report**
             
             📦 Репозиторий: ${{ needs.prepare.outputs.repository }}
             🌿 Ветка: ${{ needs.prepare.outputs.branch }}
@@ -363,3 +363,47 @@ jobs:
             🌐 Web: ${{ needs.build-web.result }}
             
             🔗 [Ссылка на сборку](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+
+
+      - name: Discord Message
+        uses: discord-actions/message@v2
+        with:
+          webhookUrl: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          message: |
+            🚀 **Flutter Release Build Report**
+            
+            📦 Репозиторий: ${{ needs.prepare.outputs.repository }}
+            🌿 Ветка: ${{ needs.prepare.outputs.branch }}
+            🏷️ Версия: ${{ github.event.inputs.build_name }} (build ${{ github.event.inputs.build_number }})
+            
+            **Статусы сборки:**
+            🤖 Android: ${{ needs.build-android.result }}
+            🍎 iOS: ${{ needs.build-ios.result }}
+            🐧 Linux: ${{ needs.build-linux.result }}
+            🪟 Windows: ${{ needs.build-windows.result }}
+            🌐 Web: ${{ needs.build-web.result }}
+            
+            🔗 [Ссылка на сборку](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+      
+      - name: Send Matrix notification (simple)
+        run: |
+          PLAIN="🚀 **Flutter Release Build Report**
+            
+          📦 Репозиторий: ${{ needs.prepare.outputs.repository }}
+          🌿 Ветка: ${{ needs.prepare.outputs.branch }}
+          🏷️ Версия: ${{ github.event.inputs.build_name }} (build ${{ github.event.inputs.build_number }})
+            
+          **Статусы сборки:**
+          🤖 Android: ${{ needs.build-android.result }}
+          🍎 iOS: ${{ needs.build-ios.result }}
+          🐧 Linux: ${{ needs.build-linux.result }}
+          🪟 Windows: ${{ needs.build-windows.result }}
+          🌐 Web: ${{ needs.build-web.result }}
+          
+          🔗 [Ссылка на сборку](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+          
+          curl -X PUT \
+            "${HOMESERVER}/_matrix/client/v3/rooms/${ROOM_ID}/send/m.room.message/$(date +%s)" \
+            -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "{\"msgtype\":\"m.notice\",\"body\":\"${PLAIN}\"}"
