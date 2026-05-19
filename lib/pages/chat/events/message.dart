@@ -212,6 +212,20 @@ class Message extends StatelessWidget {
 
     final enterThread = this.enterThread;
 
+    // Для плоского стиля: показывать имя только если это первое сообщение от автора
+    final showAuthorName = usePlainStyle && 
+        !ownMessage && 
+        !nextEventSameSender &&
+        !event.room.isDirectChat;
+
+    // Для пузырькового стиля: показывать имя по старой логике
+    final showAuthorNameBubble = !ownMessage && 
+        !nextEventSameSender &&
+        !event.room.isDirectChat;
+
+    // Для плоского стиля: отступ сверху для группировки
+    final topPadding = usePlainStyle && nextEventSameSender ? 2.0 : 8.0;
+
     return Center(
       child: Swipeable(
         key: ValueKey(event.eventId),
@@ -230,7 +244,7 @@ class Message extends StatelessWidget {
           padding: EdgeInsets.only(
             left: 8.0,
             right: 8.0,
-            top: nextEventSameSender ? 1.0 : 4.0,
+            top: usePlainStyle ? topPadding : (nextEventSameSender ? 1.0 : 4.0),
             bottom: previousEventSameSender ? 1.0 : 4.0,
           ),
           child: Column(
@@ -321,43 +335,8 @@ class Message extends StatelessWidget {
                                 crossAxisAlignment: .start,
                                 mainAxisAlignment: rowMainAxisAlignment,
                                 children: [
-                                  if (longPressSelect && !event.redacted)
-                                    SizedBox(
-                                      height: 32,
-                                      width: Avatar.defaultSize,
-                                      child: IconButton(
-                                        padding: EdgeInsets.zero,
-                                        tooltip: L10n.of(context).select,
-                                        icon: Icon(
-                                          selected
-                                              ? Icons.check_circle
-                                              : Icons.circle_outlined,
-                                        ),
-                                        onPressed: () => onSelect(event),
-                                      ),
-                                    )
-                                  else if (nextEventSameSender || ownMessage)
-                                    SizedBox(
-                                      width: Avatar.defaultSize,
-                                      child: Center(
-                                        child: SizedBox(
-                                          width: 16,
-                                          height: 16,
-                                          child:
-                                              event.status == EventStatus.error
-                                              ? const Icon(
-                                                  Icons.error,
-                                                  color: Colors.red,
-                                                )
-                                              : event.fileSendingStatus != null
-                                              ? const CircularProgressIndicator.adaptive(
-                                                  strokeWidth: 1,
-                                                )
-                                              : null,
-                                        ),
-                                      ),
-                                    )
-                                  else
+                                  // Аватар показываем только в пузырьковом стиле и если это не своё сообщение и не подряд
+                                  if (!usePlainStyle && !ownMessage && !nextEventSameSender)
                                     FutureBuilder<User?>(
                                       future: event.fetchSenderUser(),
                                       builder: (context, snapshot) {
@@ -379,6 +358,42 @@ class Message extends StatelessWidget {
                                               : null,
                                         );
                                       },
+                                    )
+                                  else if (!usePlainStyle && (nextEventSameSender || ownMessage))
+                                    SizedBox(
+                                      width: Avatar.defaultSize,
+                                      child: Center(
+                                        child: SizedBox(
+                                          width: 16,
+                                          height: 16,
+                                          child:
+                                              event.status == EventStatus.error
+                                              ? const Icon(
+                                                  Icons.error,
+                                                  color: Colors.red,
+                                                )
+                                              : event.fileSendingStatus != null
+                                              ? const CircularProgressIndicator.adaptive(
+                                                  strokeWidth: 1,
+                                                )
+                                              : null,
+                                        ),
+                                      ),
+                                    ),
+                                  if (longPressSelect && !event.redacted && !usePlainStyle)
+                                    SizedBox(
+                                      height: 32,
+                                      width: Avatar.defaultSize,
+                                      child: IconButton(
+                                        padding: EdgeInsets.zero,
+                                        tooltip: L10n.of(context).select,
+                                        icon: Icon(
+                                          selected
+                                              ? Icons.check_circle
+                                              : Icons.circle_outlined,
+                                        ),
+                                        onPressed: () => onSelect(event),
+                                      ),
                                     ),
                                   Expanded(
                                     child: Column(
@@ -387,65 +402,8 @@ class Message extends StatelessWidget {
                                           : CrossAxisAlignment.start,
                                       mainAxisSize: .min,
                                       children: [
-                                        if (!nextEventSameSender && !usePlainStyle)
-                                          Padding(
-                                            padding: const EdgeInsets.only(
-                                              left: 8.0,
-                                              bottom: 4,
-                                            ),
-                                            child:
-                                                ownMessage ||
-                                                    event.room.isDirectChat
-                                                ? const SizedBox(height: 12)
-                                                : FutureBuilder<User?>(
-                                                    future: event
-                                                        .fetchSenderUser(),
-                                                    builder: (context, snapshot) {
-                                                      final displayname =
-                                                          snapshot.data
-                                                              ?.calcDisplayname() ??
-                                                          event
-                                                              .senderFromMemoryOrFallback
-                                                              .calcDisplayname();
-                                                      return Text(
-                                                        displayname,
-                                                        style: TextStyle(
-                                                          fontSize: 11,
-                                                          fontWeight:
-                                                              FontWeight.bold,
-                                                          color:
-                                                              (theme.brightness ==
-                                                                  Brightness
-                                                                      .light
-                                                              ? displayname
-                                                                    .color
-                                                              : displayname
-                                                                    .lightColorText),
-                                                          shadows:
-                                                              !wallpaperMode
-                                                              ? null
-                                                              : [
-                                                                  const Shadow(
-                                                                    offset:
-                                                                        Offset(
-                                                                          0.0,
-                                                                          0.0,
-                                                                        ),
-                                                                    blurRadius:
-                                                                        3,
-                                                                    color: Colors
-                                                                        .black,
-                                                                  ),
-                                                                ],
-                                                        ),
-                                                        maxLines: 1,
-                                                        overflow: TextOverflow
-                                                            .ellipsis,
-                                                      );
-                                                    },
-                                                  ),
-                                          ),
-                                        if (!nextEventSameSender && usePlainStyle && !ownMessage)
+                                        // Имя автора для пузырькового стиля
+                                        if (showAuthorNameBubble)
                                           Padding(
                                             padding: const EdgeInsets.only(
                                               left: 8.0,
@@ -460,8 +418,44 @@ class Message extends StatelessWidget {
                                                 return Text(
                                                   displayname,
                                                   style: TextStyle(
-                                                    fontSize: 12,
+                                                    fontSize: 11,
                                                     fontWeight: FontWeight.bold,
+                                                    color: (theme.brightness == Brightness.light
+                                                        ? displayname.color
+                                                        : displayname.lightColorText),
+                                                    shadows: !wallpaperMode ? null : [
+                                                      const Shadow(
+                                                        offset: Offset(0.0, 0.0),
+                                                        blurRadius: 3,
+                                                        color: Colors.black,
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
+                                                );
+                                              },
+                                            ),
+                                          ),
+                                        // Имя автора для плоского стиля (только если это первое сообщение в цепочке)
+                                        if (showAuthorName)
+                                          Padding(
+                                            padding: const EdgeInsets.only(
+                                              left: 8.0,
+                                              bottom: 4,
+                                              right: 8.0,
+                                            ),
+                                            child: FutureBuilder<User?>(
+                                              future: event.fetchSenderUser(),
+                                              builder: (context, snapshot) {
+                                                final displayname =
+                                                    snapshot.data?.calcDisplayname() ??
+                                                    event.senderFromMemoryOrFallback.calcDisplayname();
+                                                return Text(
+                                                  displayname,
+                                                  style: TextStyle(
+                                                    fontSize: 13,
+                                                    fontWeight: FontWeight.w600,
                                                     color: displayname.color,
                                                   ),
                                                 );
@@ -492,7 +486,7 @@ class Message extends StatelessWidget {
                                                 ? Padding(
                                                     padding: const EdgeInsets.symmetric(
                                                       horizontal: 8.0,
-                                                      vertical: 4.0,
+                                                      vertical: 2.0,
                                                     ),
                                                     child: MessageContent(
                                                       displayEvent,
