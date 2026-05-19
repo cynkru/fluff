@@ -144,11 +144,19 @@ class SettingsStyleView extends StatelessWidget {
                 ),
               ),
             ),
-            SwitchListTile.adaptive(
-              title: const Text('Плоский стиль сообщений'),
-              subtitle: const Text('Выкл — пузыри, Вкл — текст без рамок'),
-              value: AppSettings.bubbleStyle.value,
-              onChanged: (value) => AppSettings.bubbleStyle.setItem(value),
+            ValueListenableBuilder(
+              valueListenable: ValueNotifier<bool>(AppSettings.bubbleStyle.value),
+              builder: (context, value, _) {
+                return SwitchListTile.adaptive(
+                  title: const Text('Плоский стиль сообщений'),
+                  subtitle: const Text('Выкл — пузыри, Вкл — текст без рамок'),
+                  value: value,
+                  onChanged: (newValue) async {
+                    await AppSettings.bubbleStyle.setItem(newValue);
+                    (valueListenable as ValueNotifier<bool>).value = newValue;
+                  },
+                );
+              },
             ),
             StreamBuilder(
               stream: client.onSync.stream.where(
