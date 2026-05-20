@@ -386,6 +386,10 @@ jobs:
             🔗 [Ссылка на сборку](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
       
       - name: Send Matrix notification (simple)
+        env:
+          HOMESERVER: ${{ secrets.MATRIX_HOMESERVER }}
+          ACCESS_TOKEN: ${{ secrets.MATRIX_ACCESS_TOKEN }}
+          ROOM_ID: ${{ secrets.MATRIX_ROOM_ID }}
         run: |
           PLAIN="🚀 **Flutter Release Build Report**
             
