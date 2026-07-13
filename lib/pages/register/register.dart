@@ -2,9 +2,11 @@ import 'dart:convert';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'package:go_router/go_router.dart';
 import 'package:matrix/matrix.dart';
 import 'package:http/http.dart' as http;
+import 'package:url_launcher/url_launcher.dart';
 
 import 'package:cynk/l10n/l10n.dart';
 import 'package:cynk/utils/localized_exception_extension.dart';
@@ -29,12 +31,17 @@ class RegisterController extends State<RegisterWithToken> {
   String? tokenError;
   String? usernameError;
   String? passwordError;
+  String? termsError;
   
   bool loading = false;
   bool showPassword = false;
   bool showConfirmPassword = false;
+  bool termsAccepted = false;
   
   String? confirmPassword;
+
+  // URL политики конфиденциальности (можно вынести в конфиг)
+  final String privacyPolicyUrl = 'https://matrix.cynk.ru/_matrix/consent?v=1.0';
 
   void toggleShowPassword() =>
       setState(() => showPassword = !loading && !showPassword);
@@ -42,7 +49,28 @@ class RegisterController extends State<RegisterWithToken> {
   void toggleShowConfirmPassword() =>
       setState(() => showConfirmPassword = !loading && !showConfirmPassword);
 
-  /// Извлекает локальную часть из полного username
+  void toggleTermsAccepted(bool? value) {
+    if (value != null) {
+      setState(() => termsAccepted = value);
+    }
+  }
+
+  void _launchUrl(String url) async {
+    final Uri uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Не удалось открыть ссылку: $url'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   String _extractLocalPart(String input) {
     if (input.startsWith('@')) {
       final parts = input.split(':');
@@ -54,7 +82,6 @@ class RegisterController extends State<RegisterWithToken> {
   }
 
   Future<void> register() async {
-    // Извлекаем локальную часть username
     final username = _extractLocalPart(usernameController.text);
     final password = passwordController.text;
     final token = tokenController.text;
@@ -86,6 +113,13 @@ class RegisterController extends State<RegisterWithToken> {
       setState(() => passwordError = null);
     }
 
+    if (!termsAccepted) {
+      setState(() => termsError = 'Необходимо принять условия использования');
+      hasError = true;
+    } else {
+      setState(() => termsError = null);
+    }
+
     if (hasError) return;
 
     setState(() => loading = true);
@@ -98,7 +132,9 @@ class RegisterController extends State<RegisterWithToken> {
       // ============================================================
       print('📤 Шаг 1: Получение UIA session...');
       
-      final sessionResponse = await http.post(
+      String? session;
+      
+      var response = await http.post(
         Uri.parse('$homeserver/_matrix/client/v3/register'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
@@ -108,30 +144,30 @@ class RegisterController extends State<RegisterWithToken> {
         }),
       );
 
-      print('📥 Статус: ${sessionResponse.statusCode}');
-      print('📥 Ответ: ${sessionResponse.body}');
+      print('📥 Статус: ${response.statusCode}');
+      print('📥 Ответ: ${response.body}');
 
-      if (sessionResponse.statusCode != 401) {
-        setState(() => tokenError = 'Неожиданный ответ сервера: ${sessionResponse.statusCode}');
+      if (response.statusCode != 401) {
+        setState(() => tokenError = 'Неожиданный ответ сервера: ${response.statusCode}');
         return;
       }
 
-      final sessionData = jsonDecode(sessionResponse.body);
-      final session = sessionData['session'];
+      final sessionData = jsonDecode(response.body);
+      session = sessionData['session'];
       
       if (session == null) {
-        setState(() => tokenError = 'Не удалось получить session для регистрации');
+        setState(() => tokenError = 'Не удалось получить session');
         return;
       }
 
       print('📋 Session получен: $session');
 
       // ============================================================
-      // ШАГ 2: Завершаем регистрацию с токеном
+      // ШАГ 2: Отправляем токен
       // ============================================================
-      print('📤 Шаг 2: Завершение регистрации с токеном...');
+      print('📤 Шаг 2: Отправка токена...');
 
-      final response = await http.post(
+      response = await http.post(
         Uri.parse('$homeserver/_matrix/client/v3/register'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
@@ -146,16 +182,15 @@ class RegisterController extends State<RegisterWithToken> {
         }),
       );
 
-      print('📥 Финальный статус: ${response.statusCode}');
-      print('📥 Финальный ответ: ${response.body}');
+      print('📥 Статус: ${response.statusCode}');
+      print('📥 Ответ: ${response.body}');
 
       if (response.statusCode == 200) {
+        // Успех!
         final data = jsonDecode(response.body);
         final userId = data['user_id'];
-        
         print('✅ Пользователь зарегистрирован: $userId');
         
-        // Выполняем логин через библиотеку
         await widget.client.login(
           LoginType.mLoginPassword,
           user: userId,
@@ -166,12 +201,64 @@ class RegisterController extends State<RegisterWithToken> {
         if (mounted) {
           context.go('/backup');
         }
-      } else {
-        final data = jsonDecode(response.body);
-        final error = data['error'] ?? 'Неизвестная ошибка регистрации';
-        print('❌ Ошибка: $error');
-        setState(() => tokenError = error);
+        return;
       }
+
+      // Проверяем, нужно ли согласиться с terms
+      final errorData = jsonDecode(response.body);
+      final completed = errorData['completed'] as List? ?? [];
+      
+      // Если токен принят (completed содержит registration_token)
+      if (completed.contains('m.login.registration_token')) {
+        print('✅ Токен принят! Отправляем согласие с условиями...');
+        
+        // ============================================================
+        // ШАГ 3: Согласие с политикой (m.login.terms)
+        // ============================================================
+        print('📤 Шаг 3: Согласие с политикой...');
+        
+        response = await http.post(
+          Uri.parse('$homeserver/_matrix/client/v3/register'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'auth': {
+              'type': 'm.login.terms',
+              'session': session,
+            },
+            'username': username,
+            'password': password,
+            'initial_device_display_name': PlatformInfos.clientName,
+          }),
+        );
+
+        print('📥 Статус: ${response.statusCode}');
+        print('📥 Ответ: ${response.body}');
+
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body);
+          final userId = data['user_id'];
+          print('✅ Пользователь зарегистрирован: $userId');
+          
+          await widget.client.login(
+            LoginType.mLoginPassword,
+            user: userId,
+            password: password,
+            initialDeviceDisplayName: PlatformInfos.clientName,
+          );
+
+          if (mounted) {
+            context.go('/backup');
+          }
+          return;
+        } else {
+          final data = jsonDecode(response.body);
+          setState(() => tokenError = data['error'] ?? 'Ошибка согласия с политикой');
+          return;
+        }
+      }
+
+      // Если токен не принят - ошибка
+      setState(() => tokenError = errorData['error'] ?? 'Неизвестная ошибка регистрации');
       
     } catch (exception) {
       print('❌ Исключение: $exception');

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'package:cynk/l10n/l10n.dart';
 import 'package:cynk/widgets/layouts/login_scaffold.dart';
@@ -9,10 +11,18 @@ class RegisterWithTokenView extends StatelessWidget {
 
   const RegisterWithTokenView(this.controller, {super.key});
 
+  void _launchUrl(String url) async {
+    final Uri uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final title = "Регистрация по токену";
+    final privacyPolicyUrl = 'https://matrix.cynk.ru/_matrix/consent?v=1.0';
 
     return LoginScaffold(
       appBar: AppBar(
@@ -125,9 +135,8 @@ class RegisterWithTokenView extends StatelessWidget {
                         });
                       }
                     },
-                    textInputAction: TextInputAction.go,
+                    textInputAction: TextInputAction.next,
                     obscureText: !controller.showConfirmPassword,
-                    onSubmitted: (_) => controller.register(),
                     decoration: InputDecoration(
                       prefixIcon: const Icon(Icons.lock_outline),
                       errorText: controller.passwordError,
@@ -146,13 +155,85 @@ class RegisterWithTokenView extends StatelessWidget {
                     ),
                   ),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 16),
+                
+                // ============================================================
+                // ГАЛОЧКА И ССЫЛКА НА УСЛОВИЯ
+                // ============================================================
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Checkbox(
+                        value: controller.termsAccepted,
+                        onChanged: controller.loading ? null : controller.toggleTermsAccepted,
+                        activeColor: Theme.of(context).colorScheme.primary,
+                      ),
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: 8.0),
+                          child: RichText(
+                            text: TextSpan(
+                              style: TextStyle(
+                                color: Theme.of(context).colorScheme.onSurface,
+                                fontSize: 14,
+                              ),
+                              children: [
+                                const TextSpan(text: 'Я принимаю '),
+                                TextSpan(
+                                  text: 'условия использования',
+                                  style: TextStyle(
+                                    color: Theme.of(context).colorScheme.primary,
+                                    decoration: TextDecoration.underline,
+                                  ),
+                                  recognizer: TapGestureRecognizer()
+                                    ..onTap = () => _launchUrl(privacyPolicyUrl),
+                                ),
+                                const TextSpan(text: ' и '),
+                                TextSpan(
+                                  text: 'политику конфиденциальности',
+                                  style: TextStyle(
+                                    color: Theme.of(context).colorScheme.primary,
+                                    decoration: TextDecoration.underline,
+                                  ),
+                                  recognizer: TapGestureRecognizer()
+                                    ..onTap = () => _launchUrl(privacyPolicyUrl),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                
+                // Ошибка для Terms
+                if (controller.termsError != null)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        controller.termsError!,
+                        style: const TextStyle(color: Colors.orange, fontSize: 12),
+                      ),
+                    ),
+                  ),
+                
+                const SizedBox(height: 16),
+                
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24.0),
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: theme.colorScheme.primary,
-                      foregroundColor: theme.colorScheme.onPrimary,
+                      backgroundColor: controller.termsAccepted
+                          ? theme.colorScheme.primary
+                          : Colors.grey,
+                      foregroundColor: controller.termsAccepted
+                          ? theme.colorScheme.onPrimary
+                          : Colors.white,
                     ),
                     onPressed: controller.loading ? null : controller.register,
                     child: controller.loading
