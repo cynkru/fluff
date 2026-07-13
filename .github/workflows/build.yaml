@@ -24,7 +24,7 @@ on:
           - windows
 
 env:
-  FLUTTER_VERSION: '3.x'
+  FLUTTER_VERSION: '3.22.0'
   # Увеличиваем память для всех Gradle операций
   GRADLE_OPTS: -Xmx6g -Xms4g -XX:MaxMetaspaceSize=1g -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8
   JAVA_OPTS: -Xmx6g -Xms4g -XX:MaxMetaspaceSize=1g
