@@ -317,7 +317,7 @@ class SettingsView extends StatelessWidget {
     try {
       // Получаем профиль с бейджами через новый API
       final response = await client.httpClient.get(
-        Uri.parse('/_matrix/client/v3/profile/$userId'),
+        Uri.parse('https://matrix.cynk.ru/_matrix/client/v3/profile/$userId'),
       );
       
       if (response.statusCode == 200) {
@@ -341,7 +341,7 @@ class SettingsView extends StatelessWidget {
     
     try {
       await client.httpClient.post(
-        Uri.parse('/_matrix/client/v3/profile/$userId/selected_badge'),
+        Uri.parse('https://matrix.cynk.ru/_matrix/client/v3/profile/$userId/selected_badge'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'selected_badge': badgeType}),
       );
