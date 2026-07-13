@@ -4,7 +4,7 @@ on:
   push:  # Только при пуше в любую ветку
 
 env:
-  FLUTTER_VERSION: '3.29.2'
+  FLUTTER_VERSION: '3.x'
 
 jobs:
   prepare:
