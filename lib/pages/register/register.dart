@@ -40,7 +40,7 @@ class RegisterController extends State<RegisterWithToken> {
   
   String? confirmPassword;
 
-  // URL политики конфиденциальности (можно вынести в конфиг)
+  // URL политики конфиденциальности
   final String privacyPolicyUrl = 'https://matrix.cynk.ru/_matrix/consent?v=1.0';
 
   void toggleShowPassword() =>
@@ -186,7 +186,7 @@ class RegisterController extends State<RegisterWithToken> {
       print('📥 Ответ: ${response.body}');
 
       if (response.statusCode == 200) {
-        // Успех!
+        // Успех! (если вдруг сразу зарегистрировало)
         final data = jsonDecode(response.body);
         final userId = data['user_id'];
         print('✅ Пользователь зарегистрирован: $userId');
@@ -204,18 +204,15 @@ class RegisterController extends State<RegisterWithToken> {
         return;
       }
 
-      // Проверяем, нужно ли согласиться с terms
+      // Проверяем, что прошло
       final errorData = jsonDecode(response.body);
       final completed = errorData['completed'] as List? ?? [];
       
-      // Если токен принят (completed содержит registration_token)
+      // ============================================================
+      // ШАГ 3: Согласие с политикой (m.login.terms)
+      // ============================================================
       if (completed.contains('m.login.registration_token')) {
         print('✅ Токен принят! Отправляем согласие с условиями...');
-        
-        // ============================================================
-        // ШАГ 3: Согласие с политикой (m.login.terms)
-        // ============================================================
-        print('📤 Шаг 3: Согласие с политикой...');
         
         response = await http.post(
           Uri.parse('$homeserver/_matrix/client/v3/register'),
@@ -250,14 +247,62 @@ class RegisterController extends State<RegisterWithToken> {
             context.go('/backup');
           }
           return;
+        }
+
+        final termsData = jsonDecode(response.body);
+        final termsCompleted = termsData['completed'] as List? ?? [];
+
+        // ============================================================
+        // ШАГ 4: Завершение регистрации (m.login.dummy)
+        // ============================================================
+        if (termsCompleted.contains('m.login.terms')) {
+          print('✅ Условия приняты! Завершаем регистрацию...');
+          
+          final dummyResponse = await http.post(
+            Uri.parse('$homeserver/_matrix/client/v3/register'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'auth': {
+                'type': 'm.login.dummy',
+                'session': session,
+              },
+              'username': username,
+              'password': password,
+              'initial_device_display_name': PlatformInfos.clientName,
+            }),
+          );
+
+          print('📥 Статус: ${dummyResponse.statusCode}');
+          print('📥 Ответ: ${dummyResponse.body}');
+
+          if (dummyResponse.statusCode == 200) {
+            final data = jsonDecode(dummyResponse.body);
+            final userId = data['user_id'];
+            print('✅ Пользователь зарегистрирован: $userId');
+            
+            await widget.client.login(
+              LoginType.mLoginPassword,
+              user: userId,
+              password: password,
+              initialDeviceDisplayName: PlatformInfos.clientName,
+            );
+
+            if (mounted) {
+              context.go('/backup');
+            }
+            return;
+          } else {
+            final data = jsonDecode(dummyResponse.body);
+            setState(() => tokenError = data['error'] ?? 'Ошибка завершения регистрации');
+            return;
+          }
         } else {
-          final data = jsonDecode(response.body);
-          setState(() => tokenError = data['error'] ?? 'Ошибка согласия с политикой');
+          setState(() => tokenError = termsData['error'] ?? 'Ошибка согласия с политикой');
           return;
         }
       }
 
-      // Если токен не принят - ошибка
+      // Если ничего не сработало
       setState(() => tokenError = errorData['error'] ?? 'Неизвестная ошибка регистрации');
       
     } catch (exception) {
