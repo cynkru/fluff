@@ -37,7 +37,7 @@ abstract class PlatformInfos {
   static bool get platformCanRecord => (isMobile || isMacOS || isWeb);
 
   static String get clientName =>
-      '${AppSettings.applicationName.value} ${isWeb ? 'web' : Platform.operatingSystem}${kReleaseMode ? '' : 'Debug'}';
+      '${AppSettings.applicationName.value} ${isWeb ? 'web' : Platform.operatingSystem} ${kReleaseMode ? '' : 'Debug'}';
 
   static Future<String> getVersion() async {
     var version = kIsWeb ? 'Web' : 'Unknown';

@@ -25,6 +25,9 @@ IconData _getIconFromName(String displayname) {
   if ({'desktop', 'windows', 'macos', 'linux', 'ubuntu'}.any(name.contains)) {
     return Icons.desktop_mac_outlined;
   }
+  if (name.contains('admin')) {
+    return Icons.admin_panel_settings_outlined;
+  }
   return Icons.device_unknown_outlined;
 }
 
