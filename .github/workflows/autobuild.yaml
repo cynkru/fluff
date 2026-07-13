@@ -1,12 +1,10 @@
 name: Build Flutter App
 
 on:
-  push:  # ← ТОЛЬКО ПРИ ПУШЕ В ЛЮБУЮ ВЕТКУ
+  push:  # Только при пуше в любую ветку
 
 env:
   FLUTTER_VERSION: '3.29.2'
-  GRADLE_OPTS: -Xmx6g -Xms4g -XX:MaxMetaspaceSize=1g -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8
-  JAVA_OPTS: -Xmx6g -Xms4g -XX:MaxMetaspaceSize=1g
 
 jobs:
   prepare:
@@ -108,47 +106,8 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
-  build-web:
-    needs: prepare
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Cache Flutter dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.pub-cache
-            .dart_tool
-            .flutter-plugins
-            .flutter-plugins-dependencies
-          key: ${{ needs.prepare.outputs.cache_key }}
-          restore-keys: |
-            ${{ runner.os }}-flutter-
-      
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          channel: 'stable'
-          cache: true
-          cache-key: ${{ needs.prepare.outputs.cache_key }}
-          
-      - name: Install dependencies
-        run: flutter pub get
-        
-      - name: Build Web (debug)
-        run: flutter build web --debug
-        
-      - name: Upload Web artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: web-build-${{ github.sha }}
-          path: build/web/
-          retention-days: 7
-
   notification:
-    needs: [prepare, build-linux, build-web]
+    needs: [prepare, build-linux]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -157,55 +116,13 @@ jobs:
         with:
           token: ${{ secrets.TELEGRAM_TOKEN }}
           to: ${{ secrets.TELEGRAM_CHAT_ID }}
-          message: |
-            🚀 **Flutter Build Report**
-            
-            📦 Репозиторий: ${{ needs.prepare.outputs.repository }}
-            🌿 Ветка: ${{ needs.prepare.outputs.branch }}
-            📝 Коммит: ${{ github.sha }}
-            
-            **Статусы сборки:**
-            🐧 Linux: ${{ needs.build-linux.result }}
-            🌐 Web: ${{ needs.build-web.result }}
-            
-            🔗 [Ссылка на сборку](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
-      
-      - name: Send Discord notification
-        uses: discord-actions/message@v2
-        with:
-          webhookUrl: ${{ secrets.DISCORD_WEBHOOK_URL }}
-          message: |
-            🚀 **Flutter Build Report**
-            
-            📦 Репозиторий: ${{ needs.prepare.outputs.repository }}
-            🌿 Ветка: ${{ needs.prepare.outputs.branch }}
-            
-            **Статусы:**
-            🐧 Linux: ${{ needs.build-linux.result }}
-            🌐 Web: ${{ needs.build-web.result }}
-            
-            🔗 [Ссылка](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
-      
-      - name: Send Matrix notification
-        env:
-          HOMESERVER: ${{ secrets.MATRIX_HOMESERVER }}
-          ACCESS_TOKEN: ${{ secrets.MATRIX_ACCESS_TOKEN }}
-          ROOM_ID: ${{ secrets.MATRIX_ROOM_ID }}
-        run: |
-          PLAIN="🚀 Flutter Build Report
+        message: |
+          🚀 Flutter Build Report
 
           📦 Репозиторий: ${{ needs.prepare.outputs.repository }}
           🌿 Ветка: ${{ needs.prepare.outputs.branch }}
           📝 Коммит: ${{ github.sha }}
 
-          Статусы:
-          🐧 Linux: ${{ needs.build-linux.result }}
-          🌐 Web: ${{ needs.build-web.result }}
+          Статус Linux: ${{ needs.build-linux.result }}
 
-          🔗 Ссылка: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-
-          curl -X PUT \
-            "${HOMESERVER}/_matrix/client/v3/rooms/${ROOM_ID}/send/m.room.message/$(date +%s)" \
-            -H "Authorization: Bearer ${ACCESS_TOKEN}" \
-            -H "Content-Type: application/json" \
-            -d "{\"msgtype\":\"m.notice\",\"body\":\"${PLAIN}\"}"
+          🔗 Ссылка: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
