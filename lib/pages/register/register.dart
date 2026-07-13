@@ -43,11 +43,14 @@ class RegisterController extends State<RegisterWithToken> {
       setState(() => showConfirmPassword = !loading && !showConfirmPassword);
 
   Future<void> register() async {
-    // Автоматически добавляем домен к username
+    // Извлекаем только локальную часть username (без @domain)
     String username = usernameController.text;
-    if (username.isNotEmpty && !username.contains('@') && !username.contains(':')) {
-      username = '@$username:matrix.cynk.ru';
-      usernameController.text = username;
+    if (username.startsWith('@')) {
+      // Если пользователь ввел полный ID - извлекаем локальную часть
+      final parts = username.split(':');
+      if (parts.isNotEmpty) {
+        username = parts[0].replaceFirst('@', '');
+      }
     }
 
     // Валидация
@@ -60,7 +63,7 @@ class RegisterController extends State<RegisterWithToken> {
       setState(() => tokenError = null);
     }
 
-    if (usernameController.text.isEmpty) {
+    if (username.isEmpty) {
       setState(() => usernameError = L10n.of(context).pleaseEnterYourUsername);
       hasError = true;
     } else {
@@ -84,32 +87,41 @@ class RegisterController extends State<RegisterWithToken> {
     try {
       final homeserver = widget.client.homeserver;
       
-      // 🔥 ПРЯМОЙ ЗАПРОС К /register
+      // 🔥 ПРАВИЛЬНЫЙ ФОРМАТ ЗАПРОСА
+      final requestBody = {
+        'auth': {
+          'type': 'm.login.token',
+          'token': tokenController.text,
+        },
+        'username': username,
+        'password': passwordController.text,
+        'initial_device_display_name': PlatformInfos.clientName,
+        'inhibit_login': true,
+      };
+
+      print('📤 Sending registration request to: $homeserver/_matrix/client/v3/register');
+      print('📤 Body: ${jsonEncode(requestBody)}');
+
       final response = await http.post(
         Uri.parse('$homeserver/_matrix/client/v3/register'),
         headers: {
           'Content-Type': 'application/json',
         },
-        body: jsonEncode({
-          'auth': {
-            'type': 'm.login.token',
-            'token': tokenController.text,
-          },
-          'username': usernameController.text.replaceFirst('@', '').replaceFirst(':matrix.cynk.ru', ''),
-          'password': passwordController.text,
-          'initial_device_display_name': PlatformInfos.clientName,
-          'inhibit_login': true, // Не логинимся сразу, сделаем отдельно
-        }),
+        body: jsonEncode(requestBody),
       );
+
+      print('📥 Response status: ${response.statusCode}');
+      print('📥 Response body: ${response.body}');
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final userId = data['user_id'];
+        print('✅ User registered: $userId');
         
         // Теперь логинимся через библиотеку matrix
         await widget.client.login(
           LoginType.mLoginPassword,
-          user: usernameController.text,
+          user: userId, // Используем полный user_id
           password: passwordController.text,
           initialDeviceDisplayName: PlatformInfos.clientName,
         );
@@ -118,19 +130,23 @@ class RegisterController extends State<RegisterWithToken> {
           context.go('/backup');
         }
       } else if (response.statusCode == 401) {
-        // Возможно, требуется завершить регистрацию (например, email)
         final data = jsonDecode(response.body);
+        print('⚠️ 401 - Session: ${data['session']}');
+        print('⚠️ Error: ${data['error']}');
+        
         if (data['session'] != null) {
-          // Здесь можно обработать многошаговую регистрацию
-          setState(() => tokenError = 'Требуется дополнительная проверка');
+          // Требуется завершить регистрацию
+          setState(() => tokenError = 'Требуется подтверждение регистрации');
         } else {
-          setState(() => tokenError = 'Неверный токен регистрации');
+          setState(() => tokenError = data['error'] ?? 'Неверный токен регистрации');
         }
       } else {
         final data = jsonDecode(response.body);
-        setState(() => tokenError = data['error'] ?? 'Ошибка регистрации');
+        print('❌ Error: ${data['error']}');
+        setState(() => tokenError = data['error'] ?? 'Ошибка регистрации (${response.statusCode})');
       }
     } catch (exception) {
+      print('❌ Exception: $exception');
       setState(() => tokenError = exception.toString());
     }
 
