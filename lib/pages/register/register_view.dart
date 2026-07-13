@@ -114,7 +114,7 @@ class RegisterWithTokenView extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
                 
-                // ⚠️ ИСПРАВЛЕННОЕ ПОЛЕ ПОДТВЕРЖДЕНИЯ ПАРОЛЯ
+                // Поле подтверждения пароля
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24.0),
                   child: TextField(
@@ -148,7 +148,7 @@ class RegisterWithTokenView extends StatelessWidget {
                 const SizedBox(height: 16),
                 
                 // ============================================================
-                // ГАЛОЧКА И ССЫЛКА НА УСЛОВИЯ
+                // ГАЛОЧКА И ССЫЛКА НА УСЛОВИЯ (ИСПРАВЛЕНО)
                 // ============================================================
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24.0),
@@ -157,10 +157,12 @@ class RegisterWithTokenView extends StatelessWidget {
                     children: [
                       Checkbox(
                         value: controller.termsAccepted,
-                        onPressed: controller.loading ? null : () {
-                          controller.setState(() {
-                            controller.termsAccepted = !controller.termsAccepted;
-                          });
+                        onChanged: controller.loading ? null : (bool? value) {
+                          if (value != null) {
+                            controller.setState(() {
+                              controller.termsAccepted = value;
+                            });
+                          }
                         },
                         activeColor: Theme.of(context).colorScheme.primary,
                       ),
@@ -183,7 +185,7 @@ class RegisterWithTokenView extends StatelessWidget {
                                   ),
                                   recognizer: TapGestureRecognizer()
                                     ..onTap = () => _launchUrl(privacyPolicyUrl),
-                                )
+                                ),
                               ],
                             ),
                           ),
