@@ -1,219 +1,519 @@
-name: Matrix уведомления
+name: Build Flutter App (Manual)
 
 on:
-  issues:
-    types: [opened, edited, closed, reopened]
-  pull_request_target:
-    types: [opened, edited, closed, reopened, ready_for_review]
-  discussion:
-    types: [created, answered, labeled]
+  workflow_dispatch:
+    inputs:
+      build_name:
+        description: 'Build name/version (e.g., 1.0.0)'
+        required: true
+        default: '1.0.0'
+      build_number:
+        description: 'Build number'
+        required: true
+        default: '1'
+      platform:
+        description: 'Platform to build'
+        required: true
+        type: choice
+        options:
+          - all
+          - android
+          - ios
+          - linux
+          - web
+          - windows
+
+env:
+  FLUTTER_VERSION: '3.x'
+  # Увеличиваем память для всех Gradle операций
+  GRADLE_OPTS: -Xmx6g -Xms4g -XX:MaxMetaspaceSize=1g -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8
+  JAVA_OPTS: -Xmx6g -Xms4g -XX:MaxMetaspaceSize=1g
 
 jobs:
-  notify:
-    if: |
-      ${{ 
-        (github.event_name == 'issues' && github.event.issue.user.login != 'krille-chan') ||
-        (github.event_name == 'pull_request_target' && github.event.pull_request.user.login != 'krille-chan') ||
-        (github.event_name == 'discussion' && github.event.discussion.user.login != 'krille-chan')
-      }}
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      repository: ${{ steps.repo.outputs.repository }}
+      branch: ${{ steps.repo.outputs.branch }}
+      cache_key: ${{ steps.cache_key.outputs.key }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Get repository info
+        id: repo
+        run: |
+          echo "repository=${GITHUB_REPOSITORY}" >> $GITHUB_OUTPUT
+          echo "branch=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
+      
+      - name: Generate cache key
+        id: cache_key
+        run: |
+          # Создаем ключ кеша на основе pubspec.lock и важных файлов
+          if [ -f "pubspec.lock" ]; then
+            CACHE_KEY="${{ runner.os }}-flutter-${{ hashFiles('pubspec.lock') }}"
+          else
+            CACHE_KEY="${{ runner.os }}-flutter-${{ hashFiles('pubspec.yaml') }}"
+          fi
+          echo "key=$CACHE_KEY" >> $GITHUB_OUTPUT
+          echo "Cache key: $CACHE_KEY"
+
+  build-android:
+    needs: prepare
+    if: ${{ github.event.inputs.platform == 'all' || github.event.inputs.platform == 'android' }}
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+    
+            # Ставим Java 17 для Gradle (основная)
+      - name: Setup Java
+        run: |
+          # Проверяем, установлена ли Java 17
+          if ! java -version 2>&1 | grep -q "version \"17"; then
+            echo "Java 17 not found, installing..."
+            sudo apt update
+            sudo apt install -y openjdk-17-jdk
+          else
+            echo "Java 17 already installed"
+          fi
+          
+          # Устанавливаем JAVA_HOME
+          echo "JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64" >> $GITHUB_ENV
+          echo "JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64" >> ~/.bashrc
+          
+          # Проверяем версию
+          java -version
+          javac -version
+            
+      - name: Setup Android SDK
+        uses: amyu/setup-android@v5
+        with:
+          sdk-version: '34'
+          build-tools-version: '34.0.0'
+        
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: 'stable'
+          cache: true
+          cache-key: ${{ needs.prepare.outputs.cache_key }}
+    
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: ~/.gradle/caches
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: ${{ runner.os }}-gradle-
+    
+      - name: Install dependencies
+        run: flutter pub get
+    
+      # Обновляем receive_sharing_intent до последней версии
+      - name: Update receive_sharing_intent
+        run: |
+          # Форсируем последнюю версию плагина
+          flutter pub upgrade receive_sharing_intent
+    
+      # Конфигурируем для совместимости
+      - name: Configure compatibility
+        run: |
+          # Создаем gradle.properties с явным указанием Java для компиляции
+          mkdir -p ~/.gradle
+          cat > ~/.gradle/gradle.properties << EOF
+          org.gradle.jvmargs=-Xmx4608m -XX:MaxMetaspaceSize=512m -Dfile.encoding=UTF-8
+          org.gradle.daemon=false
+          org.gradle.parallel=true
+          org.gradle.workers.max=2
+          android.useAndroidX=true
+          android.enableJetifier=true
+        
+          # Явно указываем Java 11 для компиляции Kotlin/Java кода
+          # но Gradle сам остается на Java 17
+          kotlin.jvm.target=11
+          EOF
+        
+          # Патчим build.gradle.kts если нужно
+          if [ -f "android/app/build.gradle.kts" ]; then
+            # Добавляем совместимость в kotlinOptions
+            sed -i '/android {/a \ \ \ \ compileOptions {\n\ \ \ \ \ \ \ \ sourceCompatibility = JavaVersion.VERSION_11\n\ \ \ \ \ \ \ \ targetCompatibility = JavaVersion.VERSION_11\n\ \ \ \ }\n\ \ \ \ kotlinOptions {\n\ \ \ \ \ \ \ \ jvmTarget = "11"\n\ \ \ \ }' android/app/build.gradle.kts
+          fi
+    
+      # Пробуем собрать
+      - name: Build Android APK
+        run: flutter build apk --debug
+    
+      # Если упало - пробуем с форсированной совместимостью
+      - name: Fallback with compatibility flags
+        if: failure()
+        run: |
+          # Пробуем явно указать Java 11 для тасков
+          cd android
+          ./gradlew assembleDebug \
+            -Dorg.gradle.java.home=/opt/hostedtoolcache/Java_Zulu_jdk/11.0.30-7/x64 \
+            -Pkotlin.jvm.target=11 \
+            --max-workers=2 \
+            --no-daemon
+    
+      - name: Upload Android artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-build-${{ github.event.inputs.build_name }}-${{ github.event.inputs.build_number }}
+          path: |
+            build/app/outputs/flutter-apk/*.apk
+            android/app/build/outputs/apk/**/*.apk
+          retention-days: 7
+  build-ios:
+    needs: prepare
+    if: ${{ github.event.inputs.platform == 'all' || github.event.inputs.platform == 'ios' }}
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: 'stable'
+          cache: true
+          cache-key: ${{ needs.prepare.outputs.cache_key }}
+      
+      - name: Cache Flutter dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pub-cache
+            .dart_tool
+            .flutter-plugins
+            .flutter-plugins-dependencies
+          key: ${{ needs.prepare.outputs.cache_key }}
+          restore-keys: |
+            ${{ runner.os }}-flutter-
+      
+      - name: Install dependencies
+        run: flutter pub get
+        
+      - name: Cache CocoaPods
+        uses: actions/cache@v4
+        with:
+          path: |
+            ios/Pods
+            ~/.cocoapods
+          key: ${{ runner.os }}-pods-${{ hashFiles('ios/Podfile.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pods-
+      
+      - name: Install CocoaPods dependencies
+        run: |
+          cd ios
+          pod install --repo-update || pod install --verbose
+      
+      - name: Build iOS (debug, no codesign)
+        run: |
+          flutter build ios --debug --no-codesign \
+            --verbose
+      
+      - name: Create iOS artifact archive
+        run: |
+          cd build/ios/iphoneos
+          zip -r ../../../ios-build.zip Runner.app
+      
+      - name: Upload iOS artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-build-${{ github.event.inputs.build_name }}-${{ github.event.inputs.build_number }}
+          path: ios-build.zip
+          retention-days: 7
+
+  # Остальные jobs (build-linux, build-windows, build-web) остаются без изменений
+  # с добавлением улучшенного кеширования по аналогии с iOS
+
+  build-linux:
+    needs: prepare
+    if: ${{ github.event.inputs.platform == 'all' || github.event.inputs.platform == 'linux' }}
     runs-on: ubuntu-latest
     steps:
-      - name: Отправка уведомления в Matrix комнату
+      - uses: actions/checkout@v4
+      
+      - name: Cache Flutter dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pub-cache
+            .dart_tool
+            .flutter-plugins
+            .flutter-plugins-dependencies
+          key: ${{ needs.prepare.outputs.cache_key }}
+          restore-keys: |
+            ${{ runner.os }}-flutter-
+      
+      - name: Install all Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            clang \
+            cmake \
+            ninja-build \
+            libgtk-3-dev \
+            libwebkit2gtk-4.1-dev \
+            libsecret-1-dev \
+            libjsoncpp-dev \
+            liblzma-dev \
+            pkg-config \
+            libssl-dev \
+            libx11-dev \
+            libxrandr-dev \
+            libxcursor-dev \
+            libxi-dev \
+            libxinerama-dev \
+            libgl1-mesa-dev
+          
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: 'stable'
+          cache: true
+          cache-key: ${{ needs.prepare.outputs.cache_key }}
+          
+      - name: Enable Linux desktop
+        run: flutter config --enable-linux-desktop
+        
+      - name: Install dependencies
+        run: flutter pub get
+        
+      - name: Build Linux (debug)
+        run: flutter build linux --debug
+        
+      - name: Create tar.gz archive
+        run: |
+          if [ -d "build/linux/x64/debug/bundle" ]; then
+            cd build/linux/x64/debug/bundle
+            tar -czf ../../../../../linux-build.tar.gz .
+          fi
+          
+      - name: Upload Linux artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-build-${{ github.event.inputs.build_name }}-${{ github.event.inputs.build_number }}
+          path: linux-build.tar.gz
+          retention-days: 7
+          if-no-files-found: ignore
+
+  build-windows:
+    needs: prepare
+    if: ${{ github.event.inputs.platform == 'all' || github.event.inputs.platform == 'windows' }}
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Cache Flutter dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~\.pub-cache
+            .dart_tool
+            .flutter-plugins
+            .flutter-plugins-dependencies
+          key: ${{ needs.prepare.outputs.cache_key }}
+          restore-keys: |
+            ${{ runner.os }}-flutter-
+      
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: 'stable'
+          cache: true
+          cache-key: ${{ needs.prepare.outputs.cache_key }}
+          
+      - name: Enable Windows desktop
+        run: flutter config --enable-windows-desktop
+        
+      - name: Install dependencies
+        run: flutter pub get
+        
+      - name: Build Windows (debug)
+        run: flutter build windows --debug
+        
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-build-${{ github.event.inputs.build_name }}-${{ github.event.inputs.build_number }}
+          path: build/windows/x64/runner/Debug/
+          retention-days: 7
+
+  build-web:
+    needs: prepare
+    if: ${{ github.event.inputs.platform == 'all' || github.event.inputs.platform == 'web' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Cache Flutter dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pub-cache
+            .dart_tool
+            .flutter-plugins
+            .flutter-plugins-dependencies
+          key: ${{ needs.prepare.outputs.cache_key }}
+          restore-keys: |
+            ${{ runner.os }}-flutter-
+      
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: 'stable'
+          cache: true
+          cache-key: ${{ needs.prepare.outputs.cache_key }}
+          
+      - name: Install dependencies
+        run: flutter pub get
+        
+      - name: Build Web (debug)
+        run: flutter build web --debug
+        
+      - name: Upload Web artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-build-${{ github.event.inputs.build_name }}-${{ github.event.inputs.build_number }}
+          path: build/web/
+          retention-days: 7
+
+  summary:
+    needs: [prepare, build-android, build-ios, build-linux, build-windows, build-web]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+          
+      - name: Create build summary
+        run: |
+          # Собираем статусы
+          ANDROID_STATUS="${{ needs.build-android.result }}"
+          IOS_STATUS="${{ needs.build-ios.result }}"
+          LINUX_STATUS="${{ needs.build-linux.result }}"
+          WINDOWS_STATUS="${{ needs.build-windows.result }}"
+          WEB_STATUS="${{ needs.build-web.result }}"
+          
+          # Определяем общий статус
+          if [[ "$ANDROID_STATUS" == "success" || "$IOS_STATUS" == "success" || "$LINUX_STATUS" == "success" || "$WINDOWS_STATUS" == "success" || "$WEB_STATUS" == "success" ]]; then
+            if [[ "$ANDROID_STATUS" == "success" && "$IOS_STATUS" == "success" && "$LINUX_STATUS" == "success" && "$WINDOWS_STATUS" == "success" && "$WEB_STATUS" == "success" ]]; then
+              OVERALL_STATUS="✅ Полностью успешно"
+            else
+              OVERALL_STATUS="⚠️ Частично успешно"
+            fi
+          else
+            OVERALL_STATUS="❌ Все сборки провалены"
+          fi
+          
+          # Создаем summary
+          {
+            echo "# Build Complete"
+            echo ""
+            echo "## Repository Information"
+            echo "- Repository: ${{ needs.prepare.outputs.repository }}"
+            echo "- Branch: ${{ needs.prepare.outputs.branch }}"
+            echo "- Build Name: ${{ github.event.inputs.build_name }}"
+            echo "- Build Number: ${{ github.event.inputs.build_number }}"
+            echo "- Overall Status: $OVERALL_STATUS"
+            echo "- Cache Key: ${{ needs.prepare.outputs.cache_key }}"
+            echo ""
+            echo "## Build Status"
+            echo ""
+            echo "| Platform | Status | Artifacts |"
+            echo "|----------|--------|-----------|"
+            echo "| Android | $ANDROID_STATUS | [Download](#) |"
+            echo "| iOS | $IOS_STATUS | [Download](#) |"
+            echo "| Linux | $LINUX_STATUS | [Download](#) |"
+            echo "| Windows | $WINDOWS_STATUS | [Download](#) |"
+            echo "| Web | $WEB_STATUS | [Download](#) |"
+            echo ""
+            echo "## Available Artifacts"
+            echo ""
+            if [ -d "artifacts" ] && [ "$(ls -A artifacts)" ]; then
+              echo "✅ Artifacts created:" >> $GITHUB_STEP_SUMMARY
+              ls -la artifacts/ >> $GITHUB_STEP_SUMMARY
+            else
+              echo "⚠️ No artifacts were created"
+            fi
+          } >> $GITHUB_STEP_SUMMARY
+      
+      - name: Send Telegram notification
+        uses: appleboy/telegram-action@master
+        with:
+          token: ${{ secrets.tgTOKEN }}
+          to: ${{ secrets.tgTO }}
+          message: |
+            🚀 **Flutter Build Report**
+            
+            📦 Репозиторий: ${{ needs.prepare.outputs.repository }}
+            🌿 Ветка: ${{ needs.prepare.outputs.branch }}
+            🏷️ Версия: ${{ github.event.inputs.build_name }} (build ${{ github.event.inputs.build_number }})
+            🔑 Cache Key: ${{ needs.prepare.outputs.cache_key }}
+            
+            **Статусы сборки:**
+            🤖 Android: ${{ needs.build-android.result }}
+            🍎 iOS: ${{ needs.build-ios.result }}
+            🐧 Linux: ${{ needs.build-linux.result }}
+            🪟 Windows: ${{ needs.build-windows.result }}
+            🌐 Web: ${{ needs.build-web.result }}
+            
+            🔗 [Ссылка на сборку](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+
+      - name: Discord Message
+        uses: discord-actions/message@v2
+        with:
+          webhookUrl: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          message: |
+            🚀 **Flutter Build Report**
+            
+            📦 Репозиторий: ${{ needs.prepare.outputs.repository }}
+            🌿 Ветка: ${{ needs.prepare.outputs.branch }}
+            🏷️ Версия: ${{ github.event.inputs.build_name }} (build ${{ github.event.inputs.build_number }})
+            🔑 Cache Key: ${{ needs.prepare.outputs.cache_key }}
+            
+            **Статусы сборки:**
+            🤖 Android: ${{ needs.build-android.result }}
+            🍎 iOS: ${{ needs.build-ios.result }}
+            🐧 Linux: ${{ needs.build-linux.result }}
+            🪟 Windows: ${{ needs.build-windows.result }}
+            🌐 Web: ${{ needs.build-web.result }}
+            
+            🔗 [Ссылка на сборку](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+      
+      - name: Send Matrix notification (simple)
         env:
           HOMESERVER: ${{ secrets.MATRIX_HOMESERVER }}
           ACCESS_TOKEN: ${{ secrets.MATRIX_ACCESS_TOKEN }}
           ROOM_ID: ${{ secrets.MATRIX_ROOM_ID }}
-          EVENT_NAME: ${{ github.event_name }}
-          ACTION: ${{ github.event.action }}
-          
-          # Issue variables
-          ISSUE_TITLE: ${{ github.event.issue.title }}
-          ISSUE_URL: ${{ github.event.issue.html_url }}
-          ISSUE_LABELS: ${{ join(github.event.issue.labels.*.name, ', ') }}
-          ISSUE_AUTHOR: ${{ github.event.issue.user.login }}
-          ISSUE_BODY: ${{ github.event.issue.body }}
-          
-          # PR variables
-          PR_TITLE: ${{ github.event.pull_request.title }}
-          PR_URL: ${{ github.event.pull_request.html_url }}
-          PR_LABELS: ${{ join(github.event.pull_request.labels.*.name, ', ') }}
-          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
-          PR_BODY: ${{ github.event.pull_request.body }}
-          PR_STATE: ${{ github.event.pull_request.state }}
-          
-          # Discussion variables
-          DISCUSSION_TITLE: ${{ github.event.discussion.title }}
-          DISCUSSION_URL: ${{ github.event.discussion.html_url }}
-          DISCUSSION_AUTHOR: ${{ github.event.discussion.user.login }}
-          DISCUSSION_BODY: ${{ github.event.discussion.body }}
-          DISCUSSION_CATEGORY: ${{ github.event.discussion.category.name }}
-          
-          REPO_NAME: ${{ github.repository }}
-          
         run: |
-          # Функция для обрезки текста
-          truncate_text() {
-            local text="$1"
-            local max_length="${2:-200}"
-            if [ ${#text} -gt $max_length ]; then
-              echo "${text:0:$max_length}..."
-            else
-              echo "$text"
-            fi
-          }
-          
-          # Определение типа события и формирование сообщения
-          if [ "${EVENT_NAME}" = "issues" ]; then
-            case "${ACTION}" in
-              "opened")
-                EMOJI="📝"
-                PREFIX="Новая задача"
-                ;;
-              "edited")
-                EMOJI="✏️"
-                PREFIX="Задача отредактирована"
-                ;;
-              "closed")
-                EMOJI="✅"
-                PREFIX="Задача закрыта"
-                ;;
-              "reopened")
-                EMOJI="🔄"
-                PREFIX="Задача переоткрыта"
-                ;;
-              *)
-                EMOJI="📌"
-                PREFIX="Изменение задачи"
-                ;;
-            esac
-            TITLE="${ISSUE_TITLE}"
-            URL="${ISSUE_URL}"
-            LABELS="${ISSUE_LABELS}"
-            AUTHOR="${ISSUE_AUTHOR}"
-            BODY="${ISSUE_BODY}"
-            
-          elif [ "${EVENT_NAME}" = "pull_request_target" ]; then
-            case "${ACTION}" in
-              "opened")
-                EMOJI="🔀"
-                PREFIX="Новый запрос на слияние"
-                ;;
-              "edited")
-                EMOJI="✏️"
-                PREFIX="Запрос на слияние отредактирован"
-                ;;
-              "closed")
-                if [ "${PR_STATE}" = "merged" ]; then
-                  EMOJI="🎉"
-                  PREFIX="Запрос на слияние принят"
-                else
-                  EMOJI="❌"
-                  PREFIX="Запрос на слияние отклонён"
-                fi
-                ;;
-              "reopened")
-                EMOJI="🔄"
-                PREFIX="Запрос на слияние переоткрыт"
-                ;;
-              "ready_for_review")
-                EMOJI="👀"
-                PREFIX="Готов к проверке"
-                ;;
-              *)
-                EMOJI="🔀"
-                PREFIX="Изменение PR"
-                ;;
-            esac
-            TITLE="${PR_TITLE}"
-            URL="${PR_URL}"
-            LABELS="${PR_LABELS}"
-            AUTHOR="${PR_AUTHOR}"
-            BODY="${PR_BODY}"
-            
-          elif [ "${EVENT_NAME}" = "discussion" ]; then
-            case "${ACTION}" in
-              "created")
-                EMOJI="💬"
-                PREFIX="Новое обсуждение"
-                ;;
-              "answered")
-                EMOJI="✅"
-                PREFIX="Получен ответ"
-                ;;
-              "labeled")
-                EMOJI="🏷️"
-                PREFIX="Добавлена метка"
-                ;;
-              *)
-                EMOJI="💭"
-                PREFIX="Обновление обсуждения"
-                ;;
-            esac
-            TITLE="${DISCUSSION_TITLE}"
-            URL="${DISCUSSION_URL}"
-            AUTHOR="${DISCUSSION_AUTHOR}"
-            BODY="${DISCUSSION_BODY}"
-            CATEGORY="${DISCUSSION_CATEGORY}"
-            fi
-          
-          # Формирование ссылки на автора
-          AUTHOR_URL="https://github.com/${AUTHOR}"
-          
-          # Формирование plain text сообщения
-          PLAIN="${EMOJI} ${PREFIX} в ${REPO_NAME}\n"
-          PLAIN="${PLAIN}👤 Автор: ${AUTHOR}\n"
-          PLAIN="${PLAIN}📌 ${TITLE}\n"
-          PLAIN="${PLAIN}🔗 ${URL}"
-          
-          # Формирование HTML сообщения
-          HTML="<h3>${EMOJI} ${PREFIX}</h3>"
-          HTML="${HTML}<p><b>Репозиторий:</b> <a href='https://github.com/${REPO_NAME}'>${REPO_NAME}</a></p>"
-          HTML="${HTML}<p><b>Название:</b> <a href='${URL}'>$(echo "$TITLE" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g')</a></p>"
-          HTML="${HTML}<p>👤 <b>Автор:</b> <a href='${AUTHOR_URL}'>${AUTHOR}</a></p>"
-          
-          # Добавление категории для обсуждений
-          if [ -n "${CATEGORY}" ]; then
-            HTML="${HTML}<p>📂 <b>Категория:</b> ${CATEGORY}</p>"
-          fi
-          
-          # Добавление меток
-          if [ -n "${LABELS}" ]; then
-            HTML="${HTML}<p>🏷️ <b>Метки:</b> ${LABELS}</p>"
-          fi
-          
-          # Добавление описания (обрезанного)
-          if [ -n "${BODY}" ]; then
-            TRUNCATED_BODY=$(truncate_text "$BODY" 300)
-            ESCAPED_BODY=$(echo "$TRUNCATED_BODY" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g' | tr '\n' ' ')
-            HTML="${HTML}<p>📄 <b>Описание:</b><br/><i>${ESCAPED_BODY}</i></p>"
-          fi
-          
-          # Добавление временной метки
-          TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
-          HTML="${HTML}<p><small>🕐 ${TIMESTAMP}</small></p>"
-          
-          # Генерация уникального ID транзакции
-          TXN_ID=$(date +%s%N)
-          
-          # Отправка сообщения
-          echo "Отправка уведомления в Matrix..."
-          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X PUT \
-            "${HOMESERVER}/_matrix/client/v3/rooms/${ROOM_ID}/send/m.room.message/${TXN_ID}" \
+          PLAIN="🚀 Flutter Build Report
+
+          📦 Репозиторий: ${{ needs.prepare.outputs.repository }}
+          🌿 Ветка: ${{ needs.prepare.outputs.branch }}
+          🏷️ Версия: ${{ github.event.inputs.build_name }} (build ${{ github.event.inputs.build_number }})
+
+          Статусы:
+          Android: ${{ needs.build-android.result }}
+          iOS: ${{ needs.build-ios.result }}
+          Linux: ${{ needs.build-linux.result }}
+          Windows: ${{ needs.build-windows.result }}
+          Web: ${{ needs.build-web.result }}
+
+          Ссылка: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          curl -X PUT \
+            "${HOMESERVER}/_matrix/client/v3/rooms/${ROOM_ID}/send/m.room.message/$(date +%s)" \
             -H "Authorization: Bearer ${ACCESS_TOKEN}" \
             -H "Content-Type: application/json" \
-            -d "$(jq -n \
-              --arg body "$PLAIN" \
-              --arg html "$HTML" \
-              '{
-                "msgtype": "m.notice",
-                "body": $body,
-                "format": "org.matrix.custom.html",
-                "formatted_body": $html
-              }')")
-          
-          if [ "$HTTP_CODE" = "200" ]; then
-            echo "✅ Уведомление успешно отправлено (код: $HTTP_CODE)"
-          else
-            echo "❌ Ошибка отправки уведомления (код: $HTTP_CODE)"
-            exit 1
-          fi
+            -d "{\"msgtype\":\"m.notice\",\"body\":\"${PLAIN}\"}"
