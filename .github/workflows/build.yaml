@@ -286,7 +286,7 @@ jobs:
         run: flutter pub get
         
       - name: Build Linux (debug)
-        run: flutter build linux --debug
+        run: flutter build linux --debug --enable-experiment=dot-shorthands
         
       - name: Create tar.gz archive
         run: |
