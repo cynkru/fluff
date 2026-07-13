@@ -116,13 +116,13 @@ jobs:
         with:
           token: ${{ secrets.TELEGRAM_TOKEN }}
           to: ${{ secrets.TELEGRAM_CHAT_ID }}
-        message: |
-          🚀 Flutter Build Report
+          message: |
+            🚀 Flutter Build Report
 
-          📦 Репозиторий: ${{ needs.prepare.outputs.repository }}
-          🌿 Ветка: ${{ needs.prepare.outputs.branch }}
-          📝 Коммит: ${{ github.sha }}
+            📦 Репозиторий: ${{ needs.prepare.outputs.repository }}
+            🌿 Ветка: ${{ needs.prepare.outputs.branch }}
+            📝 Коммит: ${{ github.sha }}
 
-          Статус Linux: ${{ needs.build-linux.result }}
+            Статус Linux: ${{ needs.build-linux.result }}
 
-          🔗 Ссылка: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            🔗 Ссылка: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
