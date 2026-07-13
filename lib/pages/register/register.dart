@@ -42,20 +42,27 @@ class RegisterController extends State<RegisterWithToken> {
   void toggleShowConfirmPassword() =>
       setState(() => showConfirmPassword = !loading && !showConfirmPassword);
 
-  Future<void> register() async {
-    // Извлекаем только локальную часть username (без @domain)
-    String username = usernameController.text;
-    if (username.startsWith('@')) {
-      final parts = username.split(':');
+  /// Извлекает локальную часть из полного username
+  String _extractLocalPart(String input) {
+    if (input.startsWith('@')) {
+      final parts = input.split(':');
       if (parts.isNotEmpty) {
-        username = parts[0].replaceFirst('@', '');
+        return parts[0].replaceFirst('@', '');
       }
     }
+    return input;
+  }
+
+  Future<void> register() async {
+    // Извлекаем локальную часть username
+    final username = _extractLocalPart(usernameController.text);
+    final password = passwordController.text;
+    final token = tokenController.text;
 
     // Валидация
     bool hasError = false;
 
-    if (tokenController.text.isEmpty) {
+    if (token.isEmpty) {
       setState(() => tokenError = L10n.of(context).pleaseEnterRegistrationToken);
       hasError = true;
     } else {
@@ -69,10 +76,10 @@ class RegisterController extends State<RegisterWithToken> {
       setState(() => usernameError = null);
     }
 
-    if (passwordController.text.isEmpty) {
+    if (password.isEmpty) {
       setState(() => passwordError = L10n.of(context).pleaseEnterYourPassword);
       hasError = true;
-    } else if (passwordController.text != confirmPassword) {
+    } else if (password != confirmPassword) {
       setState(() => passwordError = L10n.of(context).passwordsDoNotMatch);
       hasError = true;
     } else {
@@ -86,61 +93,88 @@ class RegisterController extends State<RegisterWithToken> {
     try {
       final homeserver = widget.client.homeserver;
       
-      // ✅ ПРАВИЛЬНЫЙ ЗАПРОС С m.login.registration_token
-      final requestBody = {
-        'auth': {
-          'type': 'm.login.registration_token',  // ← ИСПРАВЛЕНО!
-          'token': tokenController.text,
-        },
-        'username': username,
-        'password': passwordController.text,
-        'initial_device_display_name': PlatformInfos.clientName,
-        'inhibit_login': true,
-      };
+      // ============================================================
+      // ШАГ 1: Получаем UIA session
+      // ============================================================
+      print('📤 Шаг 1: Получение UIA session...');
+      
+      final sessionResponse = await http.post(
+        Uri.parse('$homeserver/_matrix/client/v3/register'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'username': username,
+          'password': password,
+          'initial_device_display_name': PlatformInfos.clientName,
+        }),
+      );
 
-      print('📤 Sending registration request to: $homeserver/_matrix/client/v3/register');
-      print('📤 Body: ${jsonEncode(requestBody)}');
+      print('📥 Статус: ${sessionResponse.statusCode}');
+      print('📥 Ответ: ${sessionResponse.body}');
+
+      if (sessionResponse.statusCode != 401) {
+        setState(() => tokenError = 'Неожиданный ответ сервера: ${sessionResponse.statusCode}');
+        return;
+      }
+
+      final sessionData = jsonDecode(sessionResponse.body);
+      final session = sessionData['session'];
+      
+      if (session == null) {
+        setState(() => tokenError = 'Не удалось получить session для регистрации');
+        return;
+      }
+
+      print('📋 Session получен: $session');
+
+      // ============================================================
+      // ШАГ 2: Завершаем регистрацию с токеном
+      // ============================================================
+      print('📤 Шаг 2: Завершение регистрации с токеном...');
 
       final response = await http.post(
         Uri.parse('$homeserver/_matrix/client/v3/register'),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode(requestBody),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'auth': {
+            'type': 'm.login.registration_token',
+            'token': token,
+            'session': session,
+          },
+          'username': username,
+          'password': password,
+          'initial_device_display_name': PlatformInfos.clientName,
+        }),
       );
 
-      print('📥 Response status: ${response.statusCode}');
-      print('📥 Response body: ${response.body}');
+      print('📥 Финальный статус: ${response.statusCode}');
+      print('📥 Финальный ответ: ${response.body}');
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final userId = data['user_id'];
-        print('✅ User registered: $userId');
         
-        // Теперь логинимся через библиотеку matrix
+        print('✅ Пользователь зарегистрирован: $userId');
+        
+        // Выполняем логин через библиотеку
         await widget.client.login(
           LoginType.mLoginPassword,
           user: userId,
-          password: passwordController.text,
+          password: password,
           initialDeviceDisplayName: PlatformInfos.clientName,
         );
 
         if (mounted) {
           context.go('/backup');
         }
-      } else if (response.statusCode == 401) {
-        final data = jsonDecode(response.body);
-        print('⚠️ 401 - Session: ${data['session']}');
-        print('⚠️ Error: ${data['error']}');
-        
-        setState(() => tokenError = data['error'] ?? 'Неверный токен регистрации');
       } else {
         final data = jsonDecode(response.body);
-        print('❌ Error: ${data['error']}');
-        setState(() => tokenError = data['error'] ?? 'Ошибка регистрации (${response.statusCode})');
+        final error = data['error'] ?? 'Неизвестная ошибка регистрации';
+        print('❌ Ошибка: $error');
+        setState(() => tokenError = error);
       }
+      
     } catch (exception) {
-      print('❌ Exception: $exception');
+      print('❌ Исключение: $exception');
       setState(() => tokenError = exception.toString());
     }
 
