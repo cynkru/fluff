@@ -91,8 +91,8 @@ dependencies:
 
 dev_dependencies:
   dart_code_linter: ^3.2.1
-  flutter_lints: ^6.0.0
-  flutter_native_splash: ^2.4.7
+  flutter_lints: ^5.0.0
+  flutter_native_splash: ^2.4.0
   flutter_test:
     sdk: flutter
   import_sorter: ^4.6.0
