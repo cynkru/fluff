@@ -27,6 +27,7 @@ class RegisterController extends State<RegisterWithToken> {
   final TextEditingController tokenController = TextEditingController();
   final TextEditingController usernameController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
+  final TextEditingController confirmPasswordController = TextEditingController(); 
   
   String? tokenError;
   String? usernameError;
@@ -41,7 +42,7 @@ class RegisterController extends State<RegisterWithToken> {
   String? confirmPassword;
 
   // URL политики конфиденциальности
-  final String privacyPolicyUrl = 'https://matrix.cynk.ru/_matrix/consent?v=1.0';
+  final String privacyPolicyUrl = 'https://matrix.cynk.ru/_matrix/consent';
 
   void toggleShowPassword() =>
       setState(() => showPassword = !loading && !showPassword);
@@ -84,6 +85,7 @@ class RegisterController extends State<RegisterWithToken> {
   Future<void> register() async {
     final username = _extractLocalPart(usernameController.text);
     final password = passwordController.text;
+    final confirmPassword = confirmPasswordController.text; 
     final token = tokenController.text;
 
     // Валидация
@@ -106,7 +108,7 @@ class RegisterController extends State<RegisterWithToken> {
     if (password.isEmpty) {
       setState(() => passwordError = L10n.of(context).pleaseEnterYourPassword);
       hasError = true;
-    } else if (password != confirmPassword) {
+    } else if (password != confirmPassword) { 
       setState(() => passwordError = L10n.of(context).passwordsDoNotMatch);
       hasError = true;
     } else {
@@ -127,11 +129,6 @@ class RegisterController extends State<RegisterWithToken> {
     try {
       final homeserver = widget.client.homeserver;
       
-      // ============================================================
-      // ШАГ 1: Получаем UIA session
-      // ============================================================
-      print('📤 Шаг 1: Получение UIA session...');
-      
       String? session;
       
       var response = await http.post(
@@ -143,9 +140,6 @@ class RegisterController extends State<RegisterWithToken> {
           'initial_device_display_name': PlatformInfos.clientName,
         }),
       );
-
-      print('📥 Статус: ${response.statusCode}');
-      print('📥 Ответ: ${response.body}');
 
       if (response.statusCode != 401) {
         setState(() => tokenError = 'Неожиданный ответ сервера: ${response.statusCode}');
@@ -159,13 +153,6 @@ class RegisterController extends State<RegisterWithToken> {
         setState(() => tokenError = 'Не удалось получить session');
         return;
       }
-
-      print('📋 Session получен: $session');
-
-      // ============================================================
-      // ШАГ 2: Отправляем токен
-      // ============================================================
-      print('📤 Шаг 2: Отправка токена...');
 
       response = await http.post(
         Uri.parse('$homeserver/_matrix/client/v3/register'),
@@ -182,14 +169,10 @@ class RegisterController extends State<RegisterWithToken> {
         }),
       );
 
-      print('📥 Статус: ${response.statusCode}');
-      print('📥 Ответ: ${response.body}');
-
       if (response.statusCode == 200) {
         // Успех! (если вдруг сразу зарегистрировало)
         final data = jsonDecode(response.body);
         final userId = data['user_id'];
-        print('✅ Пользователь зарегистрирован: $userId');
         
         await widget.client.login(
           LoginType.mLoginPassword,
@@ -208,11 +191,7 @@ class RegisterController extends State<RegisterWithToken> {
       final errorData = jsonDecode(response.body);
       final completed = errorData['completed'] as List? ?? [];
       
-      // ============================================================
-      // ШАГ 3: Согласие с политикой (m.login.terms)
-      // ============================================================
       if (completed.contains('m.login.registration_token')) {
-        print('✅ Токен принят! Отправляем согласие с условиями...');
         
         response = await http.post(
           Uri.parse('$homeserver/_matrix/client/v3/register'),
@@ -228,13 +207,9 @@ class RegisterController extends State<RegisterWithToken> {
           }),
         );
 
-        print('📥 Статус: ${response.statusCode}');
-        print('📥 Ответ: ${response.body}');
-
         if (response.statusCode == 200) {
           final data = jsonDecode(response.body);
           final userId = data['user_id'];
-          print('✅ Пользователь зарегистрирован: $userId');
           
           await widget.client.login(
             LoginType.mLoginPassword,
@@ -256,7 +231,6 @@ class RegisterController extends State<RegisterWithToken> {
         // ШАГ 4: Завершение регистрации (m.login.dummy)
         // ============================================================
         if (termsCompleted.contains('m.login.terms')) {
-          print('✅ Условия приняты! Завершаем регистрацию...');
           
           final dummyResponse = await http.post(
             Uri.parse('$homeserver/_matrix/client/v3/register'),
@@ -272,13 +246,9 @@ class RegisterController extends State<RegisterWithToken> {
             }),
           );
 
-          print('📥 Статус: ${dummyResponse.statusCode}');
-          print('📥 Ответ: ${dummyResponse.body}');
-
           if (dummyResponse.statusCode == 200) {
             final data = jsonDecode(dummyResponse.body);
             final userId = data['user_id'];
-            print('✅ Пользователь зарегистрирован: $userId');
             
             await widget.client.login(
               LoginType.mLoginPassword,

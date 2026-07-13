@@ -22,7 +22,7 @@ class RegisterWithTokenView extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final title = "Регистрация по токену";
-    final privacyPolicyUrl = 'https://matrix.cynk.ru/_matrix/consent?v=1.0';
+    final privacyPolicyUrl = 'https://matrix.cynk.ru/_matrix/consent';
 
     return LoginScaffold(
       appBar: AppBar(
@@ -113,6 +113,8 @@ class RegisterWithTokenView extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 16),
+                
+                // ⚠️ ИСПРАВЛЕННОЕ ПОЛЕ ПОДТВЕРЖДЕНИЯ ПАРОЛЯ
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24.0),
                   child: TextField(
@@ -121,22 +123,10 @@ class RegisterWithTokenView extends StatelessWidget {
                     autofillHints: controller.loading
                         ? null
                         : [AutofillHints.password],
-                    controller: TextEditingController()
-                      ..text = controller.confirmPassword ?? '',
-                    onChanged: (value) {
-                      controller.confirmPassword = value;
-                      if (controller.passwordController.text != value) {
-                        controller.setState(() {
-                          controller.passwordError = L10n.of(context).passwordsDoNotMatch;
-                        });
-                      } else {
-                        controller.setState(() {
-                          controller.passwordError = null;
-                        });
-                      }
-                    },
-                    textInputAction: TextInputAction.next,
+                    controller: controller.confirmPasswordController,
+                    textInputAction: TextInputAction.go,
                     obscureText: !controller.showConfirmPassword,
+                    onSubmitted: (_) => controller.register(),
                     decoration: InputDecoration(
                       prefixIcon: const Icon(Icons.lock_outline),
                       errorText: controller.passwordError,
@@ -167,7 +157,11 @@ class RegisterWithTokenView extends StatelessWidget {
                     children: [
                       Checkbox(
                         value: controller.termsAccepted,
-                        onChanged: controller.loading ? null : controller.toggleTermsAccepted,
+                        onPressed: controller.loading ? null : () {
+                          controller.setState(() {
+                            controller.termsAccepted = !controller.termsAccepted;
+                          });
+                        },
                         activeColor: Theme.of(context).colorScheme.primary,
                       ),
                       Expanded(
@@ -189,17 +183,7 @@ class RegisterWithTokenView extends StatelessWidget {
                                   ),
                                   recognizer: TapGestureRecognizer()
                                     ..onTap = () => _launchUrl(privacyPolicyUrl),
-                                ),
-                                const TextSpan(text: ' и '),
-                                TextSpan(
-                                  text: 'политику конфиденциальности',
-                                  style: TextStyle(
-                                    color: Theme.of(context).colorScheme.primary,
-                                    decoration: TextDecoration.underline,
-                                  ),
-                                  recognizer: TapGestureRecognizer()
-                                    ..onTap = () => _launchUrl(privacyPolicyUrl),
-                                ),
+                                )
                               ],
                             ),
                           ),
