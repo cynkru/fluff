@@ -46,7 +46,6 @@ class RegisterController extends State<RegisterWithToken> {
     // Извлекаем только локальную часть username (без @domain)
     String username = usernameController.text;
     if (username.startsWith('@')) {
-      // Если пользователь ввел полный ID - извлекаем локальную часть
       final parts = username.split(':');
       if (parts.isNotEmpty) {
         username = parts[0].replaceFirst('@', '');
@@ -87,10 +86,10 @@ class RegisterController extends State<RegisterWithToken> {
     try {
       final homeserver = widget.client.homeserver;
       
-      // 🔥 ПРАВИЛЬНЫЙ ФОРМАТ ЗАПРОСА
+      // ✅ ПРАВИЛЬНЫЙ ЗАПРОС С m.login.registration_token
       final requestBody = {
         'auth': {
-          'type': 'm.login.token',
+          'type': 'm.login.registration_token',  // ← ИСПРАВЛЕНО!
           'token': tokenController.text,
         },
         'username': username,
@@ -121,7 +120,7 @@ class RegisterController extends State<RegisterWithToken> {
         // Теперь логинимся через библиотеку matrix
         await widget.client.login(
           LoginType.mLoginPassword,
-          user: userId, // Используем полный user_id
+          user: userId,
           password: passwordController.text,
           initialDeviceDisplayName: PlatformInfos.clientName,
         );
@@ -134,12 +133,7 @@ class RegisterController extends State<RegisterWithToken> {
         print('⚠️ 401 - Session: ${data['session']}');
         print('⚠️ Error: ${data['error']}');
         
-        if (data['session'] != null) {
-          // Требуется завершить регистрацию
-          setState(() => tokenError = 'Требуется подтверждение регистрации');
-        } else {
-          setState(() => tokenError = data['error'] ?? 'Неверный токен регистрации');
-        }
+        setState(() => tokenError = data['error'] ?? 'Неверный токен регистрации');
       } else {
         final data = jsonDecode(response.body);
         print('❌ Error: ${data['error']}');
