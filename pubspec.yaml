@@ -9,6 +9,10 @@ version: 1.0.0+1
 environment:
   sdk: ">=3.0.0 <4.0.0" 
 
+enable-experiment:
+  - dot-shorthands
+  - null-aware-elements
+
 dependencies:
   animations: ^2.1.1
   app_links: ^6.4.1
