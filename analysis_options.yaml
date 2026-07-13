@@ -28,6 +28,9 @@ analyzer:
     use_build_context_synchronously: ignore
   exclude:
     - lib/l10n/*.dart
+  enable-experiment:
+    - dot-shorthands
+    - null-aware-elements
 
 dart_code_linter:
   rules:
