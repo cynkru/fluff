@@ -60,26 +60,6 @@ class ParticipantListItem extends StatelessWidget {
     );
   }
 
-  // Пустой бейдж (перечеркнутый круг)
-  Widget _buildEmptyBadgeIcon({double size = 16}) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        border: Border.all(color: Colors.grey.shade400, width: 1.5),
-      ),
-      child: Transform.rotate(
-        angle: 0.2,
-        child: const Icon(
-          Icons.close,
-          size: 12,
-          color: Colors.grey,
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -101,8 +81,9 @@ class ParticipantListItem extends StatelessWidget {
     return FutureBuilder<Map<String, dynamic>>(
       future: _loadUserBadges(context),
       builder: (context, snapshot) {
-        final selectedBadge = snapshot.data?['selected_badge'] as String?;
         final badges = snapshot.data?['badges'] as List? ?? [];
+        // ✅ Берем ПЕРВЫЙ бейдж из списка
+        final firstBadge = badges.isNotEmpty ? badges.first['type'] as String? : null;
 
         return ListTile(
           onTap: () => showMemberActionsPopupMenu(context: context, user: user),
@@ -114,16 +95,11 @@ class ParticipantListItem extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              // Бейдж рядом с именем
-              if (selectedBadge != null)
+              // ✅ Бейдж рядом с именем (первый из списка)
+              if (firstBadge != null)
                 Padding(
                   padding: const EdgeInsets.only(right: 4),
-                  child: _buildBadgeIcon(selectedBadge, size: 16),
-                )
-              else if (badges.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(right: 4),
-                  child: _buildEmptyBadgeIcon(size: 16),
+                  child: _buildBadgeIcon(firstBadge, size: 16),
                 ),
               if (permissionBatch.isNotEmpty)
                 Container(
