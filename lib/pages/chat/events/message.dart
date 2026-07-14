@@ -444,7 +444,7 @@ class Message extends StatelessWidget {
                                               bottom: 4,
                                             ),
                                             child: FutureBuilder<Map<String, dynamic>>(
-                                              future: BadgeCache().getBadges(context, event.senderId),
+                                              future: BadgeCache().getBadges(event.room.client, event.senderId),
                                               builder: (context, badgeSnapshot) {
                                                 final badges = badgeSnapshot.data?['badges'] as List? ?? [];
                                                 final firstBadge = badges.isNotEmpty 
@@ -500,7 +500,7 @@ class Message extends StatelessWidget {
                                               right: 8.0,
                                             ),
                                             child: FutureBuilder<Map<String, dynamic>>(
-                                              future: BadgeCache().getBadges(context, event.senderId),
+                                              future: BadgeCache().getBadges(event.room.client, event.senderId),
                                               builder: (context, badgeSnapshot) {
                                                 final badges = badgeSnapshot.data?['badges'] as List? ?? [];
                                                 final firstBadge = badges.isNotEmpty 
