@@ -284,8 +284,8 @@ class Message extends StatelessWidget {
           child: Column(
             mainAxisSize: .min,
             crossAxisAlignment: usePlainStyle
-                ? (ownMessage ? CrossAxisAlignment.end : CrossAxisAlignment.start)
-                : (ownMessage ? CrossAxisAlignment.end : CrossAxisAlignment.start),
+                ? CrossAxisAlignment.start
+                : (ownMessage ? CrossAxisAlignment.start : CrossAxisAlignment.start),
             children: <Widget>[
               if (displayTime || selected)
                 Padding(
