@@ -446,6 +446,8 @@ class Message extends StatelessWidget {
                                             child: FutureBuilder<Map<String, dynamic>>(
                                               future: BadgeCache().getBadges(Matrix.of(context).client, event.senderId),
                                               builder: (context, badgeSnapshot) {
+                                                print('📊 Badge snapshot for ${event.senderId}: ${badgeSnapshot.data}');
+        print('📊 ConnectionState: ${badgeSnapshot.connectionState}');
                                                 final badges = badgeSnapshot.data?['badges'] as List? ?? [];
                                                 final firstBadge = badges.isNotEmpty 
                                                     ? Badge.fromJson(badges.first) 
