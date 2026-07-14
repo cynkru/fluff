@@ -114,6 +114,7 @@ class Message extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final usePlainStyle = AppSettings.bubbleStyle.value;
+    final client = Matrix.of(context).client;
 
     if (!{
       EventTypes.Message,
@@ -133,7 +134,6 @@ class Message extends StatelessWidget {
       return StateMessage(event);
     }
 
-    final client = Matrix.of(context).client;
     final ownMessage = event.senderId == client.userID;
     final alignment = ownMessage ? Alignment.topRight : Alignment.topLeft;
 
@@ -444,7 +444,7 @@ class Message extends StatelessWidget {
                                               bottom: 4,
                                             ),
                                             child: FutureBuilder<Map<String, dynamic>>(
-                                              future: BadgeCache().getBadges(context, event.senderId),
+                                              future: BadgeCache().getBadges(client, event.senderId),
                                               builder: (context, badgeSnapshot) {
                                                 final badges = badgeSnapshot.data?['badges'] as List? ?? [];
                                                 final firstBadge = badges.isNotEmpty 
@@ -500,7 +500,7 @@ class Message extends StatelessWidget {
                                               right: 8.0,
                                             ),
                                             child: FutureBuilder<Map<String, dynamic>>(
-                                              future: BadgeCache().getBadges(context, event.senderId),
+                                              future: BadgeCache().getBadges(client, event.senderId),
                                               builder: (context, badgeSnapshot) {
                                                 final badges = badgeSnapshot.data?['badges'] as List? ?? [];
                                                 final firstBadge = badges.isNotEmpty 
