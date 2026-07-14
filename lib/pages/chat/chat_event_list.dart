@@ -1,8 +1,8 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:matrix/matrix.dart';
 
 import 'package:collection/collection.dart';
+import 'package:matrix/matrix.dart';
 import 'package:scroll_to_index/scroll_to_index.dart';
 
 import 'package:cynk/config/themes.dart';
@@ -39,8 +39,6 @@ class ChatEventList extends StatelessWidget {
     );
     final animateInEventIndex = controller.animateInEventIndex;
 
-    // create a map of eventId --> index to greatly improve performance of
-    // ListView's findChildIndexCallback
     final thisEventsKeyMap = <String, int>{};
     for (var i = 0; i < events.length; i++) {
       thisEventsKeyMap[events[i].eventId] = i;
@@ -131,42 +129,35 @@ class ChatEventList extends StatelessWidget {
             final previousEvent = i > 0 ? events[i - 1] : null;
 
             // ================================================================
-            // 🔥 НОВАЯ ЛОГИКА
+            // 🔥 ЛОГИКА: Обработка неизвестных и системных событий
             // ================================================================
 
             // 1. Удалённые сообщения (redacted)
             if (event.redacted) {
               final reason = event.redactedBecause?.content['reason'] as String?;
-              // Показываем ТОЛЬКО если есть причина
               if (reason != null && reason.isNotEmpty) {
                 return Padding(
                   padding: const EdgeInsets.symmetric(vertical: 2),
                   child: UnknownEventWidget(event: event),
                 );
               }
-              // Без причины — скрываем
               return const SizedBox.shrink();
             }
 
-            // 2. Системные события (member)
+            // 2. Системные события (m.room.member)
             // Оставляем ТОЛЬКО вход/выход (join/leave)
-            // Скрываем смену аватара/имени
-            if (event.type == EventTypes.Member) {
+            if (event.type == EventTypes.RoomMember) {
               final membership = event.content['membership'] as String?;
-              final prevMembership = event.prevContent?['membership'] as String?;
               
-              // Если это вход или выход — показываем
+              // Вход или выход — показываем
               if (membership == 'join' || membership == 'leave') {
-                // Рендерим через Message (как обычное сообщение)
-                // Они уже есть в Message? Если нет — показываем как UnknownEventWidget
                 return Padding(
                   padding: const EdgeInsets.symmetric(vertical: 2),
                   child: UnknownEventWidget(event: event),
                 );
               }
               
-              // Смена аватара, имени, прав — скрываем
-              // Проверяем, изменилось ли имя или аватар
+              // Смена аватара/имени — скрываем
               final oldName = event.prevContent?['displayname'] as String?;
               final newName = event.content['displayname'] as String?;
               final oldAvatar = event.prevContent?['avatar_url'] as String?;
@@ -176,15 +167,14 @@ class ChatEventList extends StatelessWidget {
                 return const SizedBox.shrink();
               }
               
-              // Всё остальное скрываем
               return const SizedBox.shrink();
             }
 
-            // 3. Другие системные события (смена имени комнаты, темы, аватара)
+            // 3. Другие системные события — скрываем
             if (event.type == EventTypes.RoomName ||
-                event.type == EventTypes.Topic ||
+                event.type == EventTypes.RoomTopic ||
                 event.type == EventTypes.RoomAvatar ||
-                event.type == EventTypes.PowerLevels) {
+                event.type == EventTypes.RoomPowerLevels) {
               return const SizedBox.shrink();
             }
 
@@ -197,7 +187,7 @@ class ChatEventList extends StatelessWidget {
             }
 
             // ================================================================
-            // КОНЕЦ НОВОЙ ЛОГИКИ
+            // КОНЕЦ ЛОГИКИ
             // ================================================================
 
             // Collapsed state event

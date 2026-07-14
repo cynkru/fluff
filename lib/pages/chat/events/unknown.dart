@@ -15,8 +15,17 @@ class UnknownEventWidget extends StatelessWidget {
     final sender = event.senderId ?? 'Неизвестный пользователь';
 
     // Проверяем, является ли это системным событием (join/leave)
-    if (event.type == EventTypes.Member) {
+    if (event.type == EventTypes.RoomMember) {
       return _buildMemberEvent(context);
+    }
+
+    // Удалённое сообщение
+    if (event.redacted) {
+      final reason = event.redactedBecause?.content['reason'] as String?;
+      if (reason != null && reason.isNotEmpty) {
+        return _buildRedactedWidget(context, reason);
+      }
+      return const SizedBox.shrink();
     }
 
     return Container(
@@ -78,9 +87,8 @@ class UnknownEventWidget extends StatelessWidget {
 
   Widget _buildMemberEvent(BuildContext context) {
     final theme = Theme.of(context);
-    final displayName = event.content['displayname'] as String?;
+    final displayName = event.content['displayname'] as String? ?? 'Пользователь';
     final membership = event.content['membership'] as String?;
-    final prevMembership = event.prevContent?['membership'] as String?;
 
     String text;
     IconData icon;
@@ -120,6 +128,47 @@ class UnknownEventWidget extends StatelessWidget {
                 color: color,
                 fontWeight: FontWeight.w500,
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRedactedWidget(BuildContext context, String reason) {
+    final theme = Theme.of(context);
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: Colors.grey.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.delete_outline, size: 14, color: Colors.grey),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '🗑️ Сообщение удалено',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey.shade600,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                if (reason.isNotEmpty)
+                  Text(
+                    'Причина: $reason',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.grey.shade500,
+                    ),
+                  ),
+              ],
             ),
           ),
         ],
