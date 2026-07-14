@@ -1,6 +1,5 @@
 import 'dart:convert';
 
-import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
 
 /// Кеш для бейджей пользователей
@@ -20,7 +19,7 @@ class BadgeCache {
 
   /// Получить бейджи пользователя из кеша или загрузить
   Future<Map<String, dynamic>> getBadges(
-    BuildContext context,
+    Client client,
     String userId,
   ) async {
     // Проверяем кеш
@@ -30,15 +29,12 @@ class BadgeCache {
     if (cached != null && lastUpdate != null) {
       final age = DateTime.now().difference(lastUpdate);
       if (age < _ttl) {
-        debugPrint('📦 Badge cache hit for $userId');
         return cached;
       }
     }
     
     // Загружаем свежие данные
-    debugPrint('🌐 Loading badges for $userId');
     try {
-      final client = Matrix.of(context).client;
       final response = await client.httpClient.get(
         Uri.parse('https://matrix.cynk.ru/_matrix/client/v3/profile/$userId'),
       );
@@ -56,7 +52,6 @@ class BadgeCache {
       
       return data;
     } catch (e) {
-      debugPrint('❌ Error loading badges for $userId: $e');
       return {'badges': [], 'selected_badge': null};
     }
   }
