@@ -114,7 +114,6 @@ class Message extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final usePlainStyle = AppSettings.bubbleStyle.value;
-    final client = Matrix.of(context).client;
 
     if (!{
       EventTypes.Message,
@@ -134,6 +133,7 @@ class Message extends StatelessWidget {
       return StateMessage(event);
     }
 
+    final client = Matrix.of(context).client;
     final ownMessage = event.senderId == client.userID;
     final alignment = ownMessage ? Alignment.topRight : Alignment.topLeft;
 
@@ -443,21 +443,21 @@ class Message extends StatelessWidget {
                                               left: 8.0,
                                               bottom: 4,
                                             ),
-                                            child: FutureBuilder<User?>(
-                                              future: event.fetchSenderUser(),
-                                              builder: (context, userSnapshot) {
-                                                final displayname = userSnapshot.data?.calcDisplayname() ??
-                                                    event.senderFromMemoryOrFallback.calcDisplayname();
-
-                                                // Загружаем бейджи отдельно (чтобы не блокировать имя)
-                                                return FutureBuilder<Map<String, dynamic>>(
-                                                  future: BadgeCache().getBadges(event.room.client, event.senderId),
-                                                  builder: (context, badgeSnapshot) {
-                                                    final badges = badgeSnapshot.data?['badges'] as List? ?? [];
-                                                    final firstBadge = badges.isNotEmpty
-                                                        ? Badge.fromJson(badges.first)
-                                                        : null;
-
+                                            child: FutureBuilder<Map<String, dynamic>>(
+                                              future: BadgeCache().getBadges(context, event.senderId),
+                                              builder: (context, badgeSnapshot) {
+                                                final badges = badgeSnapshot.data?['badges'] as List? ?? [];
+                                                final firstBadge = badges.isNotEmpty 
+                                                    ? Badge.fromJson(badges.first) 
+                                                    : null;
+                                                
+                                                return FutureBuilder<User?>(
+                                                  future: event.fetchSenderUser(),
+                                                  builder: (context, userSnapshot) {
+                                                    final displayname =
+                                                        userSnapshot.data?.calcDisplayname() ??
+                                                        event.senderFromMemoryOrFallback.calcDisplayname();
+                                                    
                                                     return Row(
                                                       mainAxisSize: MainAxisSize.min,
                                                       children: [
@@ -499,20 +499,21 @@ class Message extends StatelessWidget {
                                               bottom: 4,
                                               right: 8.0,
                                             ),
-                                            child: FutureBuilder<User?>(
-                                              future: event.fetchSenderUser(),
-                                              builder: (context, userSnapshot) {
-                                                final displayname = userSnapshot.data?.calcDisplayname() ??
-                                                    event.senderFromMemoryOrFallback.calcDisplayname();
-
-                                                return FutureBuilder<Map<String, dynamic>>(
-                                                  future: BadgeCache().getBadges(event.room.client, event.senderId),
-                                                  builder: (context, badgeSnapshot) {
-                                                    final badges = badgeSnapshot.data?['badges'] as List? ?? [];
-                                                    final firstBadge = badges.isNotEmpty
-                                                        ? Badge.fromJson(badges.first)
-                                                        : null;
-
+                                            child: FutureBuilder<Map<String, dynamic>>(
+                                              future: BadgeCache().getBadges(context, event.senderId),
+                                              builder: (context, badgeSnapshot) {
+                                                final badges = badgeSnapshot.data?['badges'] as List? ?? [];
+                                                final firstBadge = badges.isNotEmpty 
+                                                    ? Badge.fromJson(badges.first) 
+                                                    : null;
+                                                
+                                                return FutureBuilder<User?>(
+                                                  future: event.fetchSenderUser(),
+                                                  builder: (context, userSnapshot) {
+                                                    final displayname =
+                                                        userSnapshot.data?.calcDisplayname() ??
+                                                        event.senderFromMemoryOrFallback.calcDisplayname();
+                                                    
                                                     return Row(
                                                       mainAxisSize: MainAxisSize.min,
                                                       children: [
