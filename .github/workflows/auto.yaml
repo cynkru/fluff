@@ -1,0 +1,241 @@
+name: Build Flutter App (Auto)
+
+on:
+  push:  # Только при пуше в любую ветку
+
+env:
+  FLUTTER_VERSION: '3.x'
+  # Увеличиваем память для всех Gradle операций
+  GRADLE_OPTS: -Xmx6g -Xms4g -XX:MaxMetaspaceSize=1g -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8
+  JAVA_OPTS: -Xmx6g -Xms4g -XX:MaxMetaspaceSize=1g
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      repository: ${{ steps.repo.outputs.repository }}
+      branch: ${{ steps.repo.outputs.branch }}
+      cache_key: ${{ steps.cache_key.outputs.key }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Get repository info
+        id: repo
+        run: |
+          echo "repository=${GITHUB_REPOSITORY}" >> $GITHUB_OUTPUT
+          echo "branch=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
+      
+      - name: Generate cache key
+        id: cache_key
+        run: |
+          # Создаем ключ кеша на основе pubspec.lock и важных файлов
+          if [ -f "pubspec.lock" ]; then
+            CACHE_KEY="${{ runner.os }}-flutter-${{ hashFiles('pubspec.lock') }}"
+          else
+            CACHE_KEY="${{ runner.os }}-flutter-${{ hashFiles('pubspec.yaml') }}"
+          fi
+          echo "key=$CACHE_KEY" >> $GITHUB_OUTPUT
+          echo "Cache key: $CACHE_KEY"
+
+  build-linux:
+    needs: prepare
+    if: ${{ github.event.inputs.platform == 'all' || github.event.inputs.platform == 'linux' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Cache Flutter dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pub-cache
+            .dart_tool
+            .flutter-plugins
+            .flutter-plugins-dependencies
+          key: ${{ needs.prepare.outputs.cache_key }}
+          restore-keys: |
+            ${{ runner.os }}-flutter-
+      
+      - name: Install all Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            clang \
+            cmake \
+            ninja-build \
+            libgtk-3-dev \
+            libwebkit2gtk-4.1-dev \
+            libsecret-1-dev \
+            libjsoncpp-dev \
+            liblzma-dev \
+            pkg-config \
+            libssl-dev \
+            libx11-dev \
+            libxrandr-dev \
+            libxcursor-dev \
+            libxi-dev \
+            libxinerama-dev \
+            libgl1-mesa-dev
+          
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: 'stable'
+          cache: true
+          cache-key: ${{ needs.prepare.outputs.cache_key }}
+          
+      - name: Enable Linux desktop
+        run: flutter config --enable-linux-desktop
+        
+      - name: Install dependencies
+        run: flutter pub get
+        
+      - name: Build Linux (debug)
+        run: flutter build linux --debug
+        
+      - name: Create tar.gz archive
+        run: |
+          if [ -d "build/linux/x64/debug/bundle" ]; then
+            cd build/linux/x64/debug/bundle
+            tar -czf ../../../../../linux-build.tar.gz .
+          fi
+          
+      - name: Upload Linux artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-build-${{ github.event.inputs.build_name }}-${{ github.event.inputs.build_number }}
+          path: linux-build.tar.gz
+          retention-days: 7
+          if-no-files-found: ignore
+
+  summary:
+    needs: [prepare, build-android, build-ios, build-linux, build-windows, build-web]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+          
+      - name: Create build summary
+        run: |
+          # Собираем статусы
+          LINUX_STATUS="${{ needs.build-linux.result }}"
+          
+          # Определяем общий статус
+          if [[ "$LINUX_STATUS" == "success" ]]; then
+            if [[ "$LINUX_STATUS" == "success" ]]; then
+              OVERALL_STATUS="✅ Полностью успешно"
+            else
+              OVERALL_STATUS="⚠️ Частично успешно"
+            fi
+          else
+            OVERALL_STATUS="❌ Все сборки провалены"
+          fi
+          
+          # Создаем summary
+          {
+            echo "# Build Complete"
+            echo ""
+            echo "## Repository Information"
+            echo "- Repository: ${{ needs.prepare.outputs.repository }}"
+            echo "- Branch: ${{ needs.prepare.outputs.branch }}"
+            echo "- Build Name: ${{ github.event.inputs.build_name }}"
+            echo "- Build Number: ${{ github.event.inputs.build_number }}"
+            echo "- Overall Status: $OVERALL_STATUS"
+            echo "- Cache Key: ${{ needs.prepare.outputs.cache_key }}"
+            echo ""
+            echo "## Build Status"
+            echo ""
+            echo "| Platform | Status | Artifacts |"
+            echo "|----------|--------|-----------|"
+            echo "| Android | $ANDROID_STATUS | [Download](#) |"
+            echo "| iOS | $IOS_STATUS | [Download](#) |"
+            echo "| Linux | $LINUX_STATUS | [Download](#) |"
+            echo "| Windows | $WINDOWS_STATUS | [Download](#) |"
+            echo "| Web | $WEB_STATUS | [Download](#) |"
+            echo ""
+            echo "## Available Artifacts"
+            echo ""
+            if [ -d "artifacts" ] && [ "$(ls -A artifacts)" ]; then
+              echo "✅ Artifacts created:" >> $GITHUB_STEP_SUMMARY
+              ls -la artifacts/ >> $GITHUB_STEP_SUMMARY
+            else
+              echo "⚠️ No artifacts were created"
+            fi
+          } >> $GITHUB_STEP_SUMMARY
+      
+      - name: Send Telegram notification
+        uses: appleboy/telegram-action@master
+        with:
+          token: ${{ secrets.tgTOKEN }}
+          to: ${{ secrets.tgTO }}
+          message: |
+            🚀 **Flutter Build Report**
+            
+            📦 Репозиторий: ${{ needs.prepare.outputs.repository }}
+            🌿 Ветка: ${{ needs.prepare.outputs.branch }}
+            🏷️ Версия: ${{ github.event.inputs.build_name }} (build ${{ github.event.inputs.build_number }})
+            🔑 Cache Key: ${{ needs.prepare.outputs.cache_key }}
+            
+            **Статусы сборки:**
+            🤖 Android: ${{ needs.build-android.result }}
+            🍎 iOS: ${{ needs.build-ios.result }}
+            🐧 Linux: ${{ needs.build-linux.result }}
+            🪟 Windows: ${{ needs.build-windows.result }}
+            🌐 Web: ${{ needs.build-web.result }}
+            
+            🔗 [Ссылка на сборку](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+
+      - name: Discord Message
+        uses: discord-actions/message@v2
+        with:
+          webhookUrl: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          message: |
+            🚀 **Flutter Build Report**
+            
+            📦 Репозиторий: ${{ needs.prepare.outputs.repository }}
+            🌿 Ветка: ${{ needs.prepare.outputs.branch }}
+            🏷️ Версия: ${{ github.event.inputs.build_name }} (build ${{ github.event.inputs.build_number }})
+            🔑 Cache Key: ${{ needs.prepare.outputs.cache_key }}
+            
+            **Статусы сборки:**
+            🤖 Android: ${{ needs.build-android.result }}
+            🍎 iOS: ${{ needs.build-ios.result }}
+            🐧 Linux: ${{ needs.build-linux.result }}
+            🪟 Windows: ${{ needs.build-windows.result }}
+            🌐 Web: ${{ needs.build-web.result }}
+            
+            🔗 [Ссылка на сборку](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+      
+      - name: Send Matrix notification (simple)
+        env:
+          HOMESERVER: ${{ secrets.MATRIX_HOMESERVER }}
+          ACCESS_TOKEN: ${{ secrets.MATRIX_ACCESS_TOKEN }}
+          ROOM_ID: ${{ secrets.MATRIX_ROOM_ID }}
+        run: |
+          PLAIN="🚀 Flutter Build Report
+
+          📦 Репозиторий: ${{ needs.prepare.outputs.repository }}
+          🌿 Ветка: ${{ needs.prepare.outputs.branch }}
+          🏷️ Версия: ${{ github.event.inputs.build_name }} (build ${{ github.event.inputs.build_number }})
+
+          Статусы:
+          Android: ${{ needs.build-android.result }}
+          iOS: ${{ needs.build-ios.result }}
+          Linux: ${{ needs.build-linux.result }}
+          Windows: ${{ needs.build-windows.result }}
+          Web: ${{ needs.build-web.result }}
+
+          Ссылка: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          curl -X PUT \
+            "${HOMESERVER}/_matrix/client/v3/rooms/${ROOM_ID}/send/m.room.message/$(date +%s)" \
+            -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "{\"msgtype\":\"m.notice\",\"body\":\"${PLAIN}\"}"
