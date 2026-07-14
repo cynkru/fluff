@@ -107,14 +107,14 @@ class PinnedEvents extends StatelessWidget {
           }
           
           return true;
-        }).toList();
+        }).whereType<Event>().toList();  // ✅ Убираем null из списка
 
         // Если нет видимых закреплённых — скрываем виджет
         if (visibleEvents.isEmpty) {
           return const SizedBox.shrink();
         }
 
-        // ✅ Берём последнее видимое закреплённое сообщение (не null)
+        // Берём последнее видимое закреплённое сообщение
         final lastVisibleEvent = visibleEvents.last;
 
         return ChatAppBarListTile(
