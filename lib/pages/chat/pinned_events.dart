@@ -17,9 +17,6 @@ class PinnedEvents extends StatelessWidget {
   const PinnedEvents(this.controller, {super.key});
 
   Future<void> _displayPinnedEventsDialog(BuildContext context) async {
-    // ================================================================
-    // 🔥 ФИЛЬТРУЕМ закреплённые события при открытии диалога
-    // ================================================================
     final eventsResult = await showFutureLoadingDialog(
       context: context,
       future: () async {
@@ -28,7 +25,7 @@ class PinnedEvents extends StatelessWidget {
           final event = await controller.room.getEventById(eventId);
           if (event == null) continue;
           
-          // ❌ Пропускаем удалённые события (с любой причиной)
+          // ❌ Пропускаем удалённые события
           if (event.redacted) {
             continue;
           }
@@ -83,9 +80,6 @@ class PinnedEvents extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
-    // ================================================================
-    // 🔥 НАХОДИМ ПОСЛЕДНЕЕ ВИДИМОЕ ЗАКРЕПЛЁННОЕ СООБЩЕНИЕ
-    // ================================================================
     return FutureBuilder<List<Event?>>(
       future: Future.wait(
         pinnedEventIds.map((eventId) => controller.room.getEventById(eventId)),
@@ -146,20 +140,17 @@ class PinnedEvents extends StatelessWidget {
     );
   }
 
-  // ================================================================
-  // 🔥 ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ ДЛЯ ПРОВЕРКИ СИСТЕМНЫХ СОБЫТИЙ
-  // ================================================================
   bool _isSystemEvent(Event event) {
     const systemTypes = [
-      EventTypes.RoomMember,
-      EventTypes.RoomName,
-      EventTypes.RoomTopic,
-      EventTypes.RoomAvatar,
-      EventTypes.RoomPowerLevels,
-      EventTypes.RoomJoinRules,
-      EventTypes.RoomHistoryVisibility,
-      EventTypes.RoomGuestAccess,
-      EventTypes.RoomEncryption,
+      'm.room.member',
+      'm.room.name',
+      'm.room.topic',
+      'm.room.avatar',
+      'm.room.power_levels',
+      'm.room.join_rules',
+      'm.room.history_visibility',
+      'm.room.guest_access',
+      'm.room.encryption',
     ];
     return systemTypes.contains(event.type);
   }

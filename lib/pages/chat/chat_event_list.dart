@@ -142,7 +142,7 @@ class ChatEventList extends StatelessWidget {
             }
 
             // 2. m.room.member — показываем только join/leave
-            if (event.type == EventTypes.RoomMember) {
+            if (event.type == 'm.room.member') {
               final membership = event.content['membership'] as String?;
               
               if (membership == 'join' || membership == 'leave') {
@@ -168,19 +168,19 @@ class ChatEventList extends StatelessWidget {
             // 3. Скрываем системные события комнаты
             // m.room.create — показываем (важно для истории)
             // Все остальные — скрываем
-            if (event.type == EventTypes.RoomName ||
-                event.type == EventTypes.RoomTopic ||
-                event.type == EventTypes.RoomAvatar ||
-                event.type == EventTypes.RoomPowerLevels ||
-                event.type == EventTypes.RoomJoinRules ||
-                event.type == EventTypes.RoomHistoryVisibility ||
-                event.type == EventTypes.RoomGuestAccess ||
-                event.type == EventTypes.RoomEncryption) {
+            if (event.type == 'm.room.name' ||
+                event.type == 'm.room.topic' ||
+                event.type == 'm.room.avatar' ||
+                event.type == 'm.room.power_levels' ||
+                event.type == 'm.room.join_rules' ||
+                event.type == 'm.room.history_visibility' ||
+                event.type == 'm.room.guest_access' ||
+                event.type == 'm.room.encryption') {
               return const SizedBox.shrink();
             }
 
             // 4. m.room.create — показываем как системное событие
-            if (event.type == EventTypes.RoomCreate) {
+            if (event.type == 'm.room.create') {
               return Padding(
                 padding: const EdgeInsets.symmetric(vertical: 2),
                 child: UnknownEventWidget(event: event),
