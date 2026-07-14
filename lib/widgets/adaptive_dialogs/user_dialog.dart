@@ -57,7 +57,7 @@ class UserDialog extends StatelessWidget {
     final client = Matrix.of(context).client;
     try {
       final response = await client.httpClient.get(
-        Uri.parse('/_matrix/client/v3/profile/${profile.userId}'),
+        Uri.parse('https://matrix.cynk.ru/_matrix/client/v3/profile/${profile.userId}'),
       );
       
       if (response.statusCode == 200) {
