@@ -11,6 +11,7 @@ import 'package:cynk/config/setting_keys.dart';
 import 'package:cynk/config/themes.dart';
 import 'package:cynk/l10n/l10n.dart';
 import 'package:cynk/utils/adaptive_bottom_sheet.dart';
+import 'package:cynk/utils/badge_cache.dart';
 import 'package:cynk/utils/date_time_extension.dart';
 import 'package:cynk/utils/file_description.dart';
 import 'package:cynk/utils/matrix_sdk_extensions/matrix_locals.dart';
@@ -23,6 +24,23 @@ import 'message_content.dart';
 import 'message_reactions.dart';
 import 'reply_content.dart';
 import 'state_message.dart';
+
+// Модель для бейджа
+class Badge {
+  final String type;
+  final String text;
+  final String? description;
+
+  Badge({required this.type, required this.text, this.description});
+
+  factory Badge.fromJson(Map<String, dynamic> json) {
+    return Badge(
+      type: json['type'] as String,
+      text: json['text'] as String,
+      description: json['description'] as String?,
+    );
+  }
+}
 
 class Message extends StatelessWidget {
   final Event event;
@@ -75,6 +93,22 @@ class Message extends StatelessWidget {
     this.isCollapsed = false,
     super.key,
   });
+
+  // Иконка бейджа
+  Widget _buildBadgeIcon(String badgeType, {double size = 14}) {
+    return Image.asset(
+      'assets/badges/$badgeType.png',
+      width: size,
+      height: size,
+      errorBuilder: (context, error, stackTrace) {
+        return Icon(
+          Icons.star,
+          size: size,
+          color: Colors.grey.shade600,
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -351,7 +385,7 @@ class Message extends StatelessWidget {
                                                 context: context,
                                                 user: user,
                                                 onMention: onMention,
-                                              ),
+                                          ),
                                           presenceUserId: user.stateKey,
                                           presenceBackgroundColor: wallpaperMode
                                               ? Colors.transparent
@@ -402,42 +436,62 @@ class Message extends StatelessWidget {
                                           : CrossAxisAlignment.start,
                                       mainAxisSize: .min,
                                       children: [
-                                        // Имя автора для пузырькового стиля
+                                        // Имя автора для пузырькового стиля с бейджем
                                         if (showAuthorNameBubble)
                                           Padding(
                                             padding: const EdgeInsets.only(
                                               left: 8.0,
                                               bottom: 4,
                                             ),
-                                            child: FutureBuilder<User?>(
-                                              future: event.fetchSenderUser(),
-                                              builder: (context, snapshot) {
-                                                final displayname =
-                                                    snapshot.data?.calcDisplayname() ??
-                                                    event.senderFromMemoryOrFallback.calcDisplayname();
-                                                return Text(
-                                                  displayname,
-                                                  style: TextStyle(
-                                                    fontSize: 11,
-                                                    fontWeight: FontWeight.bold,
-                                                    color: (theme.brightness == Brightness.light
-                                                        ? displayname.color
-                                                        : displayname.lightColorText),
-                                                    shadows: !wallpaperMode ? null : [
-                                                      const Shadow(
-                                                        offset: Offset(0.0, 0.0),
-                                                        blurRadius: 3,
-                                                        color: Colors.black,
-                                                      ),
-                                                    ],
-                                                  ),
-                                                  maxLines: 1,
-                                                  overflow: TextOverflow.ellipsis,
+                                            child: FutureBuilder<Map<String, dynamic>>(
+                                              future: BadgeCache().getBadges(context, event.senderId),
+                                              builder: (context, badgeSnapshot) {
+                                                final badges = badgeSnapshot.data?['badges'] as List? ?? [];
+                                                final firstBadge = badges.isNotEmpty 
+                                                    ? Badge.fromJson(badges.first) 
+                                                    : null;
+                                                
+                                                return FutureBuilder<User?>(
+                                                  future: event.fetchSenderUser(),
+                                                  builder: (context, userSnapshot) {
+                                                    final displayname =
+                                                        userSnapshot.data?.calcDisplayname() ??
+                                                        event.senderFromMemoryOrFallback.calcDisplayname();
+                                                    
+                                                    return Row(
+                                                      mainAxisSize: MainAxisSize.min,
+                                                      children: [
+                                                        Text(
+                                                          displayname,
+                                                          style: TextStyle(
+                                                            fontSize: 11,
+                                                            fontWeight: FontWeight.bold,
+                                                            color: (theme.brightness == Brightness.light
+                                                                ? displayname.color
+                                                                : displayname.lightColorText),
+                                                            shadows: !wallpaperMode ? null : [
+                                                              const Shadow(
+                                                                offset: Offset(0.0, 0.0),
+                                                                blurRadius: 3,
+                                                                color: Colors.black,
+                                                              ),
+                                                            ],
+                                                          ),
+                                                          maxLines: 1,
+                                                          overflow: TextOverflow.ellipsis,
+                                                        ),
+                                                        if (firstBadge != null) ...[
+                                                          const SizedBox(width: 4),
+                                                          _buildBadgeIcon(firstBadge.type, size: 12),
+                                                        ],
+                                                      ],
+                                                    );
+                                                  },
                                                 );
                                               },
                                             ),
                                           ),
-                                        // Имя автора для плоского стиля (только если это первое сообщение в цепочке)
+                                        // Имя автора для плоского стиля с бейджем
                                         if (showAuthorName)
                                           Padding(
                                             padding: const EdgeInsets.only(
@@ -445,19 +499,39 @@ class Message extends StatelessWidget {
                                               bottom: 4,
                                               right: 8.0,
                                             ),
-                                            child: FutureBuilder<User?>(
-                                              future: event.fetchSenderUser(),
-                                              builder: (context, snapshot) {
-                                                final displayname =
-                                                    snapshot.data?.calcDisplayname() ??
-                                                    event.senderFromMemoryOrFallback.calcDisplayname();
-                                                return Text(
-                                                  displayname,
-                                                  style: TextStyle(
-                                                    fontSize: 13,
-                                                    fontWeight: FontWeight.w600,
-                                                    color: displayname.color,
-                                                  ),
+                                            child: FutureBuilder<Map<String, dynamic>>(
+                                              future: BadgeCache().getBadges(context, event.senderId),
+                                              builder: (context, badgeSnapshot) {
+                                                final badges = badgeSnapshot.data?['badges'] as List? ?? [];
+                                                final firstBadge = badges.isNotEmpty 
+                                                    ? Badge.fromJson(badges.first) 
+                                                    : null;
+                                                
+                                                return FutureBuilder<User?>(
+                                                  future: event.fetchSenderUser(),
+                                                  builder: (context, userSnapshot) {
+                                                    final displayname =
+                                                        userSnapshot.data?.calcDisplayname() ??
+                                                        event.senderFromMemoryOrFallback.calcDisplayname();
+                                                    
+                                                    return Row(
+                                                      mainAxisSize: MainAxisSize.min,
+                                                      children: [
+                                                        Text(
+                                                          displayname,
+                                                          style: TextStyle(
+                                                            fontSize: 13,
+                                                            fontWeight: FontWeight.w600,
+                                                            color: displayname.color,
+                                                          ),
+                                                        ),
+                                                        if (firstBadge != null) ...[
+                                                          const SizedBox(width: 4),
+                                                          _buildBadgeIcon(firstBadge.type, size: 14),
+                                                        ],
+                                                      ],
+                                                    );
+                                                  },
                                                 );
                                               },
                                             ),

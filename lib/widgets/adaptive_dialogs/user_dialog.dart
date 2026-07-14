@@ -98,35 +98,23 @@ class UserDialog extends StatelessWidget {
     );
   }
 
-  // Виджет для отображения бейджа с текстом
-    Widget _buildBadgeChip(BuildContext context, Badge badge, {bool isSelected = false}) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: isSelected 
-            ? Theme.of(context).colorScheme.primaryContainer
-            : Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(16),
-        border: isSelected
-            ? Border.all(
-                color: Theme.of(context).colorScheme.primary,
-                width: 1,
-              )
-            : null,
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _buildBadgeIcon(badge.type, size: 16),
-          const SizedBox(width: 4),
-          Text(
-            badge.text,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-            ),
-          ),
-        ],
+  // Виджет для отображения бейджа с текстом (без фона, просто иконка)
+  Widget _buildBadgeIconItem(BuildContext context, Badge badge) {
+    return Tooltip(
+      message: badge.text,
+      child: GestureDetector(
+        onTap: () {
+          if (badge.description != null && badge.description!.isNotEmpty) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(badge.description!),
+                duration: const Duration(seconds: 2),
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
+        },
+        child: _buildBadgeIcon(badge.type, size: 20),
       ),
     );
   }
@@ -151,6 +139,9 @@ class UserDialog extends StatelessWidget {
         
         // Преобразуем в список объектов Badge
         final badges = badgesData.map((b) => Badge.fromJson(b)).toList();
+        
+        // Находим первый бейдж (если есть) для отображения рядом с именем
+        final firstBadge = badges.isNotEmpty ? badges.first : null;
 
         return AlertDialog.adaptive(
           title: ConstrainedBox(
@@ -166,27 +157,10 @@ class UserDialog extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  if (selectedBadge != null) ...[
+                  // ✅ Показываем ПЕРВЫЙ бейдж рядом с именем
+                  if (firstBadge != null) ...[
                     const SizedBox(width: 8),
-                    _buildBadgeIcon(selectedBadge, size: 20),
-                  ] else if (badges.isNotEmpty) ...[
-                    const SizedBox(width: 8),
-                    Container(
-                      width: 20,
-                      height: 20,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.grey.shade400, width: 1.5),
-                      ),
-                      child: Transform.rotate(
-                        angle: 0.2,
-                        child: const Icon(
-                          Icons.close,
-                          size: 12,
-                          color: Colors.grey,
-                        ),
-                      ),
-                    ),
+                    _buildBadgeIconItem(context, firstBadge),
                   ],
                 ],
               ),
@@ -228,21 +202,15 @@ class UserDialog extends StatelessWidget {
                         ),
                       ),
                       
-                      // Список всех бейджей
+                      // ✅ Отображаем ВСЕ бейджи как иконки без фона
                       if (badges.isNotEmpty) ...[
                         const SizedBox(height: 8),
                         Wrap(
-                          spacing: 6,
-                          runSpacing: 6,
+                          spacing: 8,
+                          runSpacing: 8,
                           alignment: WrapAlignment.center,
                           children: badges.map((badge) {
-                            return Builder(
-                              builder: (context) => _buildBadgeChip(
-                                context,
-                                badge,
-                                isSelected: badge.type == selectedBadge,
-                              ),
-                            );
+                            return _buildBadgeIconItem(context, badge);
                           }).toList(),
                         ),
                         const SizedBox(height: 8),
