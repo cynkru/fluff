@@ -443,23 +443,21 @@ class Message extends StatelessWidget {
                                               left: 8.0,
                                               bottom: 4,
                                             ),
-                                            child: FutureBuilder<Map<String, dynamic>>(
-                                              future: BadgeCache().getBadges(Matrix.of(context).client, event.senderId),
-                                              builder: (context, badgeSnapshot) {
-                                                print('📊 Badge snapshot for ${event.senderId}: ${badgeSnapshot.data}');
-        print('📊 ConnectionState: ${badgeSnapshot.connectionState}');
-                                                final badges = badgeSnapshot.data?['badges'] as List? ?? [];
-                                                final firstBadge = badges.isNotEmpty 
-                                                    ? Badge.fromJson(badges.first) 
-                                                    : null;
-                                                
-                                                return FutureBuilder<User?>(
-                                                  future: event.fetchSenderUser(),
-                                                  builder: (context, userSnapshot) {
-                                                    final displayname =
-                                                        userSnapshot.data?.calcDisplayname() ??
-                                                        event.senderFromMemoryOrFallback.calcDisplayname();
-                                                    
+                                            child: FutureBuilder<User?>(
+                                              future: event.fetchSenderUser(),
+                                              builder: (context, userSnapshot) {
+                                                final displayname = userSnapshot.data?.calcDisplayname() ??
+                                                    event.senderFromMemoryOrFallback.calcDisplayname();
+
+                                                // Загружаем бейджи отдельно (чтобы не блокировать имя)
+                                                return FutureBuilder<Map<String, dynamic>>(
+                                                  future: BadgeCache().getBadges(event.room.client, event.senderId),
+                                                  builder: (context, badgeSnapshot) {
+                                                    final badges = badgeSnapshot.data?['badges'] as List? ?? [];
+                                                    final firstBadge = badges.isNotEmpty
+                                                        ? Badge.fromJson(badges.first)
+                                                        : null;
+
                                                     return Row(
                                                       mainAxisSize: MainAxisSize.min,
                                                       children: [
@@ -501,21 +499,20 @@ class Message extends StatelessWidget {
                                               bottom: 4,
                                               right: 8.0,
                                             ),
-                                            child: FutureBuilder<Map<String, dynamic>>(
-                                              future: BadgeCache().getBadges(Matrix.of(context).client, event.senderId),
-                                              builder: (context, badgeSnapshot) {
-                                                final badges = badgeSnapshot.data?['badges'] as List? ?? [];
-                                                final firstBadge = badges.isNotEmpty 
-                                                    ? Badge.fromJson(badges.first) 
-                                                    : null;
-                                                
-                                                return FutureBuilder<User?>(
-                                                  future: event.fetchSenderUser(),
-                                                  builder: (context, userSnapshot) {
-                                                    final displayname =
-                                                        userSnapshot.data?.calcDisplayname() ??
-                                                        event.senderFromMemoryOrFallback.calcDisplayname();
-                                                    
+                                            child: FutureBuilder<User?>(
+                                              future: event.fetchSenderUser(),
+                                              builder: (context, userSnapshot) {
+                                                final displayname = userSnapshot.data?.calcDisplayname() ??
+                                                    event.senderFromMemoryOrFallback.calcDisplayname();
+
+                                                return FutureBuilder<Map<String, dynamic>>(
+                                                  future: BadgeCache().getBadges(event.room.client, event.senderId),
+                                                  builder: (context, badgeSnapshot) {
+                                                    final badges = badgeSnapshot.data?['badges'] as List? ?? [];
+                                                    final firstBadge = badges.isNotEmpty
+                                                        ? Badge.fromJson(badges.first)
+                                                        : null;
+
                                                     return Row(
                                                       mainAxisSize: MainAxisSize.min,
                                                       children: [
