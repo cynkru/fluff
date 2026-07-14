@@ -114,7 +114,7 @@ class PinnedEvents extends StatelessWidget {
           return const SizedBox.shrink();
         }
 
-        // Берём последнее видимое закреплённое сообщение
+        // ✅ Берём последнее видимое закреплённое сообщение (не null)
         final lastVisibleEvent = visibleEvents.last;
 
         return ChatAppBarListTile(
