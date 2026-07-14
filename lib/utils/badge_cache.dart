@@ -1,7 +1,7 @@
 import 'dart:convert';
 
+import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
-import 'package:flutter/foundation.dart';
 
 /// Кеш для бейджей пользователей
 class BadgeCache {
