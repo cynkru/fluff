@@ -246,13 +246,13 @@ class Message extends StatelessWidget {
 
     final enterThread = this.enterThread;
 
-    // Для плоского стиля: показывать имя только если это первое сообщение от автора
+    // ✅ Показываем имя для всех, кроме подряд идущих сообщений от одного автора
+    // Для плоского стиля
     final showAuthorName = usePlainStyle && 
-        !ownMessage && 
         !nextEventSameSender &&
         !event.room.isDirectChat;
 
-    // Для пузырькового стиля: показывать имя по старой логике
+    // Для пузырькового стиля
     final showAuthorNameBubble = !ownMessage && 
         !nextEventSameSender &&
         !event.room.isDirectChat;
@@ -436,28 +436,29 @@ class Message extends StatelessWidget {
                                           : CrossAxisAlignment.start,
                                       mainAxisSize: .min,
                                       children: [
-                                        // Имя автора для пузырькового стиля с бейджем
+                                        // ✅ Имя автора для пузырькового стиля с бейджем (для всех, кроме подряд идущих)
                                         if (showAuthorNameBubble)
                                           Padding(
                                             padding: const EdgeInsets.only(
                                               left: 8.0,
                                               bottom: 4,
                                             ),
-                                            child: FutureBuilder<Map<String, dynamic>>(
-                                              future: BadgeCache().getBadges(event.room.client, event.senderId),
-                                              builder: (context, badgeSnapshot) {
-                                                final badges = badgeSnapshot.data?['badges'] as List? ?? [];
-                                                final firstBadge = badges.isNotEmpty 
-                                                    ? Badge.fromJson(badges.first) 
-                                                    : null;
-                                                
-                                                return FutureBuilder<User?>(
-                                                  future: event.fetchSenderUser(),
-                                                  builder: (context, userSnapshot) {
-                                                    final displayname =
-                                                        userSnapshot.data?.calcDisplayname() ??
-                                                        event.senderFromMemoryOrFallback.calcDisplayname();
-                                                    
+                                            child: FutureBuilder<User?>(
+                                              future: event.fetchSenderUser(),
+                                              builder: (context, userSnapshot) {
+                                                final displayname =
+                                                    userSnapshot.data?.calcDisplayname() ??
+                                                    event.senderFromMemoryOrFallback.calcDisplayname();
+
+                                                // ✅ Загружаем бейдж отдельно
+                                                return FutureBuilder<Map<String, dynamic>>(
+                                                  future: BadgeCache().getBadges(event.room.client, event.senderId),
+                                                  builder: (context, badgeSnapshot) {
+                                                    final badges = badgeSnapshot.data?['badges'] as List? ?? [];
+                                                    final firstBadge = badges.isNotEmpty
+                                                        ? Badge.fromJson(badges.first)
+                                                        : null;
+
                                                     return Row(
                                                       mainAxisSize: MainAxisSize.min,
                                                       children: [
@@ -491,7 +492,7 @@ class Message extends StatelessWidget {
                                               },
                                             ),
                                           ),
-                                        // Имя автора для плоского стиля с бейджем
+                                        // ✅ Имя автора для плоского стиля с бейджем (для всех, кроме подряд идущих)
                                         if (showAuthorName)
                                           Padding(
                                             padding: const EdgeInsets.only(
@@ -499,21 +500,21 @@ class Message extends StatelessWidget {
                                               bottom: 4,
                                               right: 8.0,
                                             ),
-                                            child: FutureBuilder<Map<String, dynamic>>(
-                                              future: BadgeCache().getBadges(event.room.client, event.senderId),
-                                              builder: (context, badgeSnapshot) {
-                                                final badges = badgeSnapshot.data?['badges'] as List? ?? [];
-                                                final firstBadge = badges.isNotEmpty 
-                                                    ? Badge.fromJson(badges.first) 
-                                                    : null;
-                                                
-                                                return FutureBuilder<User?>(
-                                                  future: event.fetchSenderUser(),
-                                                  builder: (context, userSnapshot) {
-                                                    final displayname =
-                                                        userSnapshot.data?.calcDisplayname() ??
-                                                        event.senderFromMemoryOrFallback.calcDisplayname();
-                                                    
+                                            child: FutureBuilder<User?>(
+                                              future: event.fetchSenderUser(),
+                                              builder: (context, userSnapshot) {
+                                                final displayname =
+                                                    userSnapshot.data?.calcDisplayname() ??
+                                                    event.senderFromMemoryOrFallback.calcDisplayname();
+
+                                                return FutureBuilder<Map<String, dynamic>>(
+                                                  future: BadgeCache().getBadges(event.room.client, event.senderId),
+                                                  builder: (context, badgeSnapshot) {
+                                                    final badges = badgeSnapshot.data?['badges'] as List? ?? [];
+                                                    final firstBadge = badges.isNotEmpty
+                                                        ? Badge.fromJson(badges.first)
+                                                        : null;
+
                                                     return Row(
                                                       mainAxisSize: MainAxisSize.min,
                                                       children: [
