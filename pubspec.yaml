@@ -113,6 +113,7 @@ flutter:
     - assets/
     - assets/sounds/
     - assets/vodozemac/
+    - assets/badges/
 
 # Guidelines for adding a dependency override:
 # 1. Don't do it if you can avoid it or fix it upstream in a manageable time

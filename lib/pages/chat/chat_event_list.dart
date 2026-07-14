@@ -8,6 +8,7 @@ import 'package:cynk/config/themes.dart';
 import 'package:cynk/l10n/l10n.dart';
 import 'package:cynk/pages/chat/chat.dart';
 import 'package:cynk/pages/chat/events/message.dart';
+import 'package:cynk/pages/chat/events/unknown.dart';
 import 'package:cynk/pages/chat/seen_by_row.dart';
 import 'package:cynk/pages/chat/typing_indicators.dart';
 import 'package:cynk/utils/account_config.dart';
@@ -127,6 +128,76 @@ class ChatEventList extends StatelessWidget {
 
             final nextEvent = i + 1 < events.length ? events[i + 1] : null;
             final previousEvent = i > 0 ? events[i - 1] : null;
+
+            // ================================================================
+            // 🔥 НОВАЯ ЛОГИКА
+            // ================================================================
+
+            // 1. Удалённые сообщения (redacted)
+            if (event.redacted) {
+              final reason = event.redactedBecause?.content['reason'] as String?;
+              // Показываем ТОЛЬКО если есть причина
+              if (reason != null && reason.isNotEmpty) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 2),
+                  child: UnknownEventWidget(event: event),
+                );
+              }
+              // Без причины — скрываем
+              return const SizedBox.shrink();
+            }
+
+            // 2. Системные события (member)
+            // Оставляем ТОЛЬКО вход/выход (join/leave)
+            // Скрываем смену аватара/имени
+            if (event.type == EventTypes.Member) {
+              final membership = event.content['membership'] as String?;
+              final prevMembership = event.prevContent?['membership'] as String?;
+              
+              // Если это вход или выход — показываем
+              if (membership == 'join' || membership == 'leave') {
+                // Рендерим через Message (как обычное сообщение)
+                // Они уже есть в Message? Если нет — показываем как UnknownEventWidget
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 2),
+                  child: UnknownEventWidget(event: event),
+                );
+              }
+              
+              // Смена аватара, имени, прав — скрываем
+              // Проверяем, изменилось ли имя или аватар
+              final oldName = event.prevContent?['displayname'] as String?;
+              final newName = event.content['displayname'] as String?;
+              final oldAvatar = event.prevContent?['avatar_url'] as String?;
+              final newAvatar = event.content['avatar_url'] as String?;
+              
+              if ((oldName != newName) || (oldAvatar != newAvatar)) {
+                return const SizedBox.shrink();
+              }
+              
+              // Всё остальное скрываем
+              return const SizedBox.shrink();
+            }
+
+            // 3. Другие системные события (смена имени комнаты, темы, аватара)
+            if (event.type == EventTypes.RoomName ||
+                event.type == EventTypes.Topic ||
+                event.type == EventTypes.RoomAvatar ||
+                event.type == EventTypes.PowerLevels) {
+              return const SizedBox.shrink();
+            }
+
+            // 4. Неизвестный тип сообщения
+            if (!isKnownMessageType(event)) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 2),
+                child: UnknownEventWidget(event: event),
+              );
+            }
+
+            // ================================================================
+            // КОНЕЦ НОВОЙ ЛОГИКИ
+            // ================================================================
 
             // Collapsed state event
             final canExpand =
