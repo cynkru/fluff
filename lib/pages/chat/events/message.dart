@@ -110,6 +110,45 @@ class Message extends StatelessWidget {
     );
   }
 
+  // Виджет статуса отправки
+  Widget _buildStatusIcon(BuildContext context) {
+    return SizedBox(
+      width: Avatar.defaultSize,
+      child: Center(
+        child: SizedBox(
+          width: 16,
+          height: 16,
+          child: event.status == EventStatus.error
+              ? const Icon(Icons.error, color: Colors.red, size: 16)
+              : event.fileSendingStatus != null
+                  ? const CircularProgressIndicator.adaptive(strokeWidth: 1)
+                  : null,
+        ),
+      ),
+    );
+  }
+
+  // Виджет аватара
+  Widget _buildAvatar(BuildContext context) {
+    return FutureBuilder<User?>(
+      future: event.fetchSenderUser(),
+      builder: (context, snapshot) {
+        final user = snapshot.data ?? event.senderFromMemoryOrFallback;
+        return Avatar(
+          mxContent: user.avatarUrl,
+          name: user.calcDisplayname(),
+          onTap: () => showMemberActionsPopupMenu(
+            context: context,
+            user: user,
+            onMention: onMention,
+          ),
+          presenceUserId: user.stateKey,
+          presenceBackgroundColor: wallpaperMode ? Colors.transparent : null,
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -171,10 +210,6 @@ class Message extends StatelessWidget {
               ? theme.colorScheme.primaryFixed
               : theme.colorScheme.onTertiaryContainer
         : theme.colorScheme.primary;
-
-    final rowMainAxisAlignment = ownMessage
-        ? MainAxisAlignment.end
-        : MainAxisAlignment.start;
 
     final displayEvent = event.getDisplayEvent(timeline);
     const hardCorner = Radius.circular(4);
@@ -365,67 +400,33 @@ class Message extends StatelessWidget {
                                   ),
                                 ),
                               ),
+                              // Основной Row с сообщением
                               Row(
-                                crossAxisAlignment: .start,
-                                mainAxisAlignment: rowMainAxisAlignment,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisAlignment: ownMessage
+                                    ? MainAxisAlignment.end
+                                    : MainAxisAlignment.start,
                                 children: [
-                                  // ЛЕВАЯ ЧАСТЬ: для пузырькового стиля
+                                  // ⬅️ ЛЕВАЯ ЧАСТЬ (только для пузырькового стиля)
                                   if (!usePlainStyle) ...[
-                                    // Для своих сообщений - слева ничего не показываем (или отступ)
-                                    if (ownMessage) ...[
-                                      if (!nextEventSameSender)
-                                        SizedBox(width: Avatar.defaultSize),
-                                      if (nextEventSameSender)
-                                        SizedBox(
-                                          width: Avatar.defaultSize,
-                                          child: Center(
-                                            child: SizedBox(
-                                              width: 16,
-                                              height: 16,
-                                              child:
-                                                  event.status == EventStatus.error
-                                                  ? const Icon(
-                                                      Icons.error,
-                                                      color: Colors.red,
-                                                    )
-                                                  : event.fileSendingStatus != null
-                                                  ? const CircularProgressIndicator.adaptive(
-                                                      strokeWidth: 1,
-                                                    )
-                                                  : null,
-                                            ),
-                                          ),
-                                        ),
-                                    ],
-                                    // Для чужих сообщений - слева аватар
+                                    // Для СВОИХ сообщений - слева пусто (только если не подряд)
+                                    if (ownMessage && !nextEventSameSender)
+                                      const SizedBox(width: Avatar.defaultSize),
+                                    
+                                    // Для СВОИХ подряд идущих - иконка статуса слева
+                                    if (ownMessage && nextEventSameSender)
+                                      _buildStatusIcon(context),
+                                    
+                                    // Для ЧУЖИХ сообщений - аватар слева
                                     if (!ownMessage && !nextEventSameSender)
-                                      FutureBuilder<User?>(
-                                        future: event.fetchSenderUser(),
-                                        builder: (context, snapshot) {
-                                          final user =
-                                              snapshot.data ??
-                                              event.senderFromMemoryOrFallback;
-                                          return Avatar(
-                                            mxContent: user.avatarUrl,
-                                            name: user.calcDisplayname(),
-                                            onTap: () =>
-                                                showMemberActionsPopupMenu(
-                                                  context: context,
-                                                  user: user,
-                                                  onMention: onMention,
-                                            ),
-                                            presenceUserId: user.stateKey,
-                                            presenceBackgroundColor: wallpaperMode
-                                                ? Colors.transparent
-                                                : null,
-                                          );
-                                        },
-                                      ),
-                                    // Для чужих подряд идущих - отступ
+                                      _buildAvatar(context),
+                                    
+                                    // Для ЧУЖИХ подряд идущих - пусто слева
                                     if (!ownMessage && nextEventSameSender)
-                                      SizedBox(width: Avatar.defaultSize),
+                                      const SizedBox(width: Avatar.defaultSize),
                                   ],
 
+                                  // Кнопка выбора (для мультивыбора)
                                   if (longPressSelect && !event.redacted && !usePlainStyle)
                                     SizedBox(
                                       height: 32,
@@ -442,12 +443,13 @@ class Message extends StatelessWidget {
                                       ),
                                     ),
 
+                                  // 📦 ОСНОВНОЙ КОНТЕНТ СООБЩЕНИЯ
                                   Expanded(
                                     child: Column(
                                       crossAxisAlignment: usePlainStyle
                                           ? (ownMessage ? CrossAxisAlignment.end : CrossAxisAlignment.start)
                                           : CrossAxisAlignment.start,
-                                      mainAxisSize: .min,
+                                      mainAxisSize: MainAxisSize.min,
                                       children: [
                                         // ✅ Имя автора для пузырькового стиля с бейджем (для всех, кроме подряд идущих)
                                         if (showAuthorNameBubble)
@@ -954,40 +956,20 @@ class Message extends StatelessWidget {
                                       ],
                                     ),
                                   ),
-                                  // ПРАВАЯ ЧАСТЬ: для пузырькового стиля
+
+                                  // ➡️ ПРАВАЯ ЧАСТЬ (только для пузырькового стиля)
                                   if (!usePlainStyle) ...[
-                                    // Для своих сообщений - справа иконка статуса
+                                    // Для СВОИХ сообщений - иконка статуса справа
                                     if (ownMessage && !nextEventSameSender)
-                                      SizedBox(
-                                        width: Avatar.defaultSize,
-                                        child: Center(
-                                          child: SizedBox(
-                                            width: 16,
-                                            height: 16,
-                                            child:
-                                                event.status == EventStatus.error
-                                                ? const Icon(
-                                                    Icons.error,
-                                                    color: Colors.red,
-                                                  )
-                                                : event.fileSendingStatus != null
-                                                ? const CircularProgressIndicator.adaptive(
-                                                    strokeWidth: 1,
-                                                  )
-                                                : null,
-                                          ),
-                                        ),
-                                      ),
-                                    // Для своих подряд идущих - отступ справа
+                                      _buildStatusIcon(context),
+                                    
+                                    // Для СВОИХ подряд идущих - пусто справа
                                     if (ownMessage && nextEventSameSender)
-                                      SizedBox(width: Avatar.defaultSize),
-                                    // Для чужих сообщений - справа ничего
-                                    if (!ownMessage) ...[
-                                      if (!nextEventSameSender)
-                                        SizedBox(width: Avatar.defaultSize),
-                                      if (nextEventSameSender)
-                                        SizedBox(width: Avatar.defaultSize),
-                                    ],
+                                      const SizedBox(width: Avatar.defaultSize),
+                                    
+                                    // Для ЧУЖИХ сообщений - пусто справа
+                                    if (!ownMessage)
+                                      const SizedBox(width: Avatar.defaultSize),
                                   ],
                                 ],
                               ),
