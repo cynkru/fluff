@@ -113,7 +113,7 @@ jobs:
           if-no-files-found: ignore
 
   summary:
-    needs: [prepare, build-android, build-ios, build-linux, build-windows, build-web]
+    needs: [prepare, build-linux]
     if: always()
     runs-on: ubuntu-latest
     steps:
