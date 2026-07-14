@@ -62,7 +62,6 @@ class ChatEventList extends StatelessWidget {
             : ScrollViewKeyboardDismissBehavior.manual,
         childrenDelegate: SliverChildBuilderDelegate(
           (BuildContext context, int i) {
-            // Footer to display typing indicator and read receipts:
             if (i == 0) {
               if (timeline.canRequestFuture) {
                 return Center(
@@ -86,7 +85,6 @@ class ChatEventList extends StatelessWidget {
               );
             }
 
-            // Request history button or progress indicator:
             if (i == events.length + 1) {
               if (controller.activeThreadId != null ||
                   !timeline.canRequestHistory) {
@@ -118,7 +116,6 @@ class ChatEventList extends StatelessWidget {
             }
             i--;
 
-            // The message at this index:
             final event = events[i];
             final animateIn =
                 animateInEventIndex != null &&
@@ -129,7 +126,7 @@ class ChatEventList extends StatelessWidget {
             final previousEvent = i > 0 ? events[i - 1] : null;
 
             // ================================================================
-            // 🔥 ЛОГИКА: Обработка неизвестных и системных событий
+            // 🔥 ЛОГИКА: Обработка событий
             // ================================================================
 
             // 1. Удалённые сообщения (redacted)
@@ -144,12 +141,10 @@ class ChatEventList extends StatelessWidget {
               return const SizedBox.shrink();
             }
 
-            // 2. Системные события (m.room.member)
-            // Оставляем ТОЛЬКО вход/выход (join/leave)
+            // 2. m.room.member — показываем только join/leave
             if (event.type == EventTypes.RoomMember) {
               final membership = event.content['membership'] as String?;
               
-              // Вход или выход — показываем
               if (membership == 'join' || membership == 'leave') {
                 return Padding(
                   padding: const EdgeInsets.symmetric(vertical: 2),
@@ -170,15 +165,29 @@ class ChatEventList extends StatelessWidget {
               return const SizedBox.shrink();
             }
 
-            // 3. Другие системные события — скрываем
+            // 3. Скрываем системные события комнаты
+            // m.room.create — показываем (важно для истории)
+            // Все остальные — скрываем
             if (event.type == EventTypes.RoomName ||
                 event.type == EventTypes.RoomTopic ||
                 event.type == EventTypes.RoomAvatar ||
-                event.type == EventTypes.RoomPowerLevels) {
+                event.type == EventTypes.RoomPowerLevels ||
+                event.type == EventTypes.RoomJoinRules ||
+                event.type == EventTypes.RoomHistoryVisibility ||
+                event.type == EventTypes.RoomGuestAccess ||
+                event.type == EventTypes.RoomEncryption) {
               return const SizedBox.shrink();
             }
 
-            // 4. Неизвестный тип сообщения
+            // 4. m.room.create — показываем как системное событие
+            if (event.type == EventTypes.RoomCreate) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 2),
+                child: UnknownEventWidget(event: event),
+              );
+            }
+
+            // 5. Неизвестный тип сообщения
             if (!isKnownMessageType(event)) {
               return Padding(
                 padding: const EdgeInsets.symmetric(vertical: 2),
@@ -190,7 +199,6 @@ class ChatEventList extends StatelessWidget {
             // КОНЕЦ ЛОГИКИ
             // ================================================================
 
-            // Collapsed state event
             final canExpand =
                 event.isCollapsedState &&
                 nextEvent?.isCollapsedState == true &&

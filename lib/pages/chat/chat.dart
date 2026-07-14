@@ -558,7 +558,7 @@ class ChatController extends State<ChatPageWithRoom>
   void setSendingClient(Client c) {
     // first cancel typing with the old sending client
     if (currentlyTyping) {
-      // no need to have the setting typing to false be blocking
+      // no need to have the setting typing to be false blocking
       typingCoolDown?.cancel();
       typingCoolDown = null;
       room.setTyping(false);
@@ -914,16 +914,53 @@ class ChatController extends State<ChatPageWithRoom>
     return clients;
   }
 
+  // ================================================================
+  // 🔥 ИСПРАВЛЕННЫЙ ГЕТТЕР: Удаление сообщений
+  // ================================================================
   bool get canRedactSelectedEvents {
     if (isArchived) return false;
-    final clients = Matrix.of(context).currentBundle;
+    if (selectedEvents.isEmpty) return false;
+    
+    final currentUserId = sendingClient.userID;
+    
     for (final event in selectedEvents) {
+      // Нельзя удалять неотправленные
       if (!event.status.isSent) return false;
-      if (event.canRedact == false &&
-          !(clients!.any((cl) => event.senderId == cl!.userID))) {
+      
+      // Нельзя удалять уже удалённые
+      if (event.redacted) return false;
+      
+      // ✅ Своё ИЛИ есть права на удаление (модератор)
+      if (event.senderId != currentUserId && !event.canRedact) {
         return false;
       }
     }
+    return true;
+  }
+
+  // ================================================================
+  // 🔥 ИСПРАВЛЕННЫЙ ГЕТТЕР: Редактирование сообщений
+  // ================================================================
+  bool get canEditSelectedEvents {
+    // 1. Базовые проверки
+    if (isArchived) return false;
+    if (selectedEvents.length != 1) return false;
+    
+    final event = selectedEvents.first;
+    
+    // 2. Проверка, что событие отправлено
+    if (!event.status.isSent) return false;
+    
+    // 3. Проверка, что это текстовое сообщение
+    if (event.type != EventTypes.Message) return false;
+    
+    // 4. Проверка, что сообщение не удалено
+    if (event.redacted) return false;
+    
+    // 5. ✅ Проверяем, что это своё сообщение
+    final currentUserId = sendingClient.userID;
+    if (event.senderId != currentUserId) return false;
+    
     return true;
   }
 
@@ -936,17 +973,6 @@ class ChatController extends State<ChatPageWithRoom>
       return false;
     }
     return true;
-  }
-
-  bool get canEditSelectedEvents {
-    if (isArchived ||
-        selectedEvents.length != 1 ||
-        !selectedEvents.first.status.isSent) {
-      return false;
-    }
-    return currentRoomBundle.any(
-      (cl) => selectedEvents.first.senderId == cl!.userID,
-    );
   }
 
   void forwardEventsAction() async {

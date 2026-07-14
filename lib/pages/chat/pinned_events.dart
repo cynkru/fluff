@@ -17,19 +17,38 @@ class PinnedEvents extends StatelessWidget {
   const PinnedEvents(this.controller, {super.key});
 
   Future<void> _displayPinnedEventsDialog(BuildContext context) async {
+    // ================================================================
+    // 🔥 ФИЛЬТРУЕМ закреплённые события при открытии диалога
+    // ================================================================
     final eventsResult = await showFutureLoadingDialog(
       context: context,
-      future: () => Future.wait(
-        controller.room.pinnedEventIds.map(
-          (eventId) => controller.room.getEventById(eventId),
-        ),
-      ),
+      future: () async {
+        final events = <Event>[];
+        for (final eventId in controller.room.pinnedEventIds) {
+          final event = await controller.room.getEventById(eventId);
+          if (event == null) continue;
+          
+          // ❌ Пропускаем удалённые события (с любой причиной)
+          if (event.redacted) {
+            continue;
+          }
+          
+          // ❌ Пропускаем системные события
+          if (_isSystemEvent(event)) {
+            continue;
+          }
+          
+          events.add(event);
+        }
+        return events;
+      },
     );
+    
     final events = eventsResult.result;
-    if (events == null) return;
+    if (events == null || events.isEmpty) return;
 
     final eventId = events.length == 1
-        ? events.single?.eventId
+        ? events.single.eventId
         : await showModalActionPopup<String>(
             context: context,
             title: L10n.of(context).pin,
@@ -37,10 +56,10 @@ class PinnedEvents extends StatelessWidget {
             actions: events
                 .map(
                   (event) => AdaptiveModalAction(
-                    value: event?.eventId ?? '',
+                    value: event.eventId,
                     icon: const Icon(Icons.push_pin_outlined),
                     label:
-                        event?.calcLocalizedBodyFallback(
+                        event.calcLocalizedBodyFallback(
                           MatrixLocals(L10n.of(context)),
                           withSenderNamePrefix: true,
                           hideReply: true,
@@ -64,18 +83,53 @@ class PinnedEvents extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
-    return FutureBuilder<Event?>(
-      future: controller.room.getEventById(pinnedEventIds.last),
+    // ================================================================
+    // 🔥 НАХОДИМ ПОСЛЕДНЕЕ ВИДИМОЕ ЗАКРЕПЛЁННОЕ СООБЩЕНИЕ
+    // ================================================================
+    return FutureBuilder<List<Event?>>(
+      future: Future.wait(
+        pinnedEventIds.map((eventId) => controller.room.getEventById(eventId)),
+      ),
       builder: (context, snapshot) {
-        final event = snapshot.data;
+        if (!snapshot.hasData) {
+          return ChatAppBarListTile(
+            title: L10n.of(context).loadingPleaseWait,
+          );
+        }
+
+        // Фильтруем события
+        final events = snapshot.data!;
+        final visibleEvents = events.where((event) {
+          if (event == null) return false;
+          
+          // ❌ Пропускаем удалённые
+          if (event.redacted) {
+            return false;
+          }
+          
+          // ❌ Пропускаем системные
+          if (_isSystemEvent(event)) {
+            return false;
+          }
+          
+          return true;
+        }).toList();
+
+        // Если нет видимых закреплённых — скрываем виджет
+        if (visibleEvents.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
+        // Берём последнее видимое закреплённое сообщение
+        final lastVisibleEvent = visibleEvents.last;
+
         return ChatAppBarListTile(
-          title:
-              event?.calcLocalizedBodyFallback(
-                MatrixLocals(L10n.of(context)),
-                withSenderNamePrefix: true,
-                hideReply: true,
-              ) ??
-              L10n.of(context).loadingPleaseWait,
+          title: lastVisibleEvent.calcLocalizedBodyFallback(
+            MatrixLocals(L10n.of(context)),
+            withSenderNamePrefix: true,
+            hideReply: true,
+          ) ??
+          L10n.of(context).loadingPleaseWait,
           leading: IconButton(
             splashRadius: 18,
             iconSize: 18,
@@ -83,12 +137,30 @@ class PinnedEvents extends StatelessWidget {
             icon: const Icon(Icons.push_pin),
             tooltip: L10n.of(context).unpin,
             onPressed: controller.room.canSendEvent(EventTypes.RoomPinnedEvents)
-                ? () => controller.unpinEvent(event!.eventId)
+                ? () => controller.unpinEvent(lastVisibleEvent.eventId)
                 : null,
           ),
           onTap: () => _displayPinnedEventsDialog(context),
         );
       },
     );
+  }
+
+  // ================================================================
+  // 🔥 ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ ДЛЯ ПРОВЕРКИ СИСТЕМНЫХ СОБЫТИЙ
+  // ================================================================
+  bool _isSystemEvent(Event event) {
+    const systemTypes = [
+      EventTypes.RoomMember,
+      EventTypes.RoomName,
+      EventTypes.RoomTopic,
+      EventTypes.RoomAvatar,
+      EventTypes.RoomPowerLevels,
+      EventTypes.RoomJoinRules,
+      EventTypes.RoomHistoryVisibility,
+      EventTypes.RoomGuestAccess,
+      EventTypes.RoomEncryption,
+    ];
+    return systemTypes.contains(event.type);
   }
 }
