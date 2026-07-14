@@ -52,7 +52,8 @@ enum AppSettings<T> {
   // colorSchemeSeed stored as ARGB int
   colorSchemeSeedInt<int>('ru.cynk.color_scheme_seed', 0xFF448AFF),
   emojiSuggestionLocale<String>('emoji_suggestion_locale', ''),
-  enableSoftLogout<bool>('ru.cynk.enable_soft_logout', false);
+  enableSoftLogout<bool>('ru.cynk.enable_soft_logout', false),
+  bubbleStyle<bool>('ru.cynk.bubbleStyle', false);
 
   final String key;
   final T defaultValue;
