@@ -42,7 +42,6 @@ jobs:
 
   build-linux:
     needs: prepare
-    if: ${{ github.event.inputs.platform == 'all' || github.event.inputs.platform == 'linux' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
