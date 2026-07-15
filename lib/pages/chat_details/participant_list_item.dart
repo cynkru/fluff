@@ -14,6 +14,14 @@ class ParticipantListItem extends StatelessWidget {
 
   const ParticipantListItem(this.user, {super.key});
 
+  String _formatUsername(String userId) {
+    final localpart = userId.localpart;
+    if (localpart != null && localpart.isNotEmpty) {
+      return '@$localpart';
+    }
+    return userId;
+  }
+
   // Загрузка бейджей пользователя
   Future<Map<String, dynamic>> _loadUserBadges(BuildContext context) async {
     final client = Matrix.of(context).client;
@@ -26,13 +34,19 @@ class ParticipantListItem extends StatelessWidget {
     String badgeType, {
     double size = 16,
     String? description,
+    String? fallbackText,
   }) {
+    final message = (description ?? '').trim().isNotEmpty
+        ? description!.trim()
+        : (fallbackText ?? '').trim();
+
     return GestureDetector(
+      behavior: HitTestBehavior.opaque,
       onTap: () {
-        if (description != null && description.isNotEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(
+        if (message.isNotEmpty) {
+          ScaffoldMessenger.maybeOf(context)?.showSnackBar(
             SnackBar(
-              content: Text(description),
+              content: Text(message),
               duration: const Duration(seconds: 2),
               behavior: SnackBarBehavior.floating,
             ),
@@ -111,6 +125,9 @@ class ParticipantListItem extends StatelessWidget {
                     description: badges.isNotEmpty && badges.first is Map
                         ? ((badges.first as Map)['description'] as String?)
                         : null,
+                    fallbackText: badges.isNotEmpty && badges.first is Map
+                        ? ((badges.first as Map)['text'] as String?)
+                        : null,
                   ),
                 ),
               if (permissionBatch.isNotEmpty)
@@ -153,7 +170,11 @@ class ParticipantListItem extends StatelessWidget {
                 ),
             ],
           ),
-          subtitle: Text(user.id, maxLines: 1, overflow: TextOverflow.ellipsis),
+          subtitle: Text(
+            _formatUsername(user.id),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
           leading: Opacity(
             opacity: user.membership == Membership.join ? 1 : 0.5,
             child: Avatar(

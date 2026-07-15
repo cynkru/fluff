@@ -52,6 +52,14 @@ class UserDialog extends StatelessWidget {
 
   const UserDialog(this.profile, {this.noProfileWarning = false, super.key});
 
+  String _formatUsername(String userId) {
+    final localpart = userId.localpart;
+    if (localpart != null && localpart.isNotEmpty) {
+      return '@$localpart';
+    }
+    return userId;
+  }
+
   // Загрузка бейджей пользователя
   Future<Map<String, dynamic>> _loadUserBadges(BuildContext context) async {
     final client = Matrix.of(context).client;
@@ -100,14 +108,19 @@ class UserDialog extends StatelessWidget {
 
   // Виджет для отображения бейджа с текстом (без фона, просто иконка)
   Widget _buildBadgeIconItem(BuildContext context, Badge badge) {
+    final message = (badge.description ?? '').trim().isNotEmpty
+        ? badge.description!.trim()
+        : badge.text.trim();
+
     return Tooltip(
       message: badge.text,
       child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
         onTap: () {
-          if (badge.description != null && badge.description!.isNotEmpty) {
-            ScaffoldMessenger.of(context).showSnackBar(
+          if (message.isNotEmpty) {
+            ScaffoldMessenger.maybeOf(context)?.showSnackBar(
               SnackBar(
-                content: Text(badge.description!),
+                content: Text(message),
                 duration: const Duration(seconds: 2),
                 behavior: SnackBarBehavior.floating,
               ),
@@ -124,9 +137,7 @@ class UserDialog extends StatelessWidget {
     final client = Matrix.of(context).client;
     final dmRoomId = client.getDirectChatFromUserId(profile.userId);
     final displayname =
-        profile.displayName ??
-        profile.userId.localpart ??
-        L10n.of(context).user;
+        profile.displayName ?? _formatUsername(profile.userId);
     var copied = false;
     final theme = Theme.of(context);
     final avatar = profile.avatarUrl;
@@ -253,7 +264,7 @@ class UserDialog extends StatelessWidget {
                                         ),
                                       ),
                                     ),
-                                    TextSpan(text: profile.userId),
+                                    TextSpan(text: _formatUsername(profile.userId)),
                                   ],
                                   style: theme.textTheme.bodyMedium?.copyWith(
                                     fontSize: 10,

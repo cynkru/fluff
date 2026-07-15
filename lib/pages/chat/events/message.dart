@@ -133,6 +133,22 @@ class Message extends StatelessWidget {
     final theme = Theme.of(context);
     final usePlainStyle = AppSettings.bubbleStyle.value;
 
+    if (event.type.startsWith('c.')) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 6.0),
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: Text(
+            'данное сообщение не поддерживается, пожалуйста, обновите приложение или обратитесь в поддержку',
+            style: TextStyle(
+              fontStyle: FontStyle.italic,
+              color: theme.colorScheme.secondary,
+            ),
+          ),
+        ),
+      );
+    }
+
     if (!{
       EventTypes.Message,
       EventTypes.Sticker,

@@ -36,6 +36,14 @@ class SettingsView extends StatelessWidget {
 
   const SettingsView(this.controller, {super.key});
 
+  String _formatUsername(String userId) {
+    final localpart = userId.localpart;
+    if (localpart != null && localpart.isNotEmpty) {
+      return '@$localpart';
+    }
+    return userId;
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -62,8 +70,7 @@ class SettingsView extends StatelessWidget {
                 final avatar = profile?.avatarUrl;
                 final mxid =
                     Matrix.of(context).client.userID ?? L10n.of(context).user;
-                final displayname =
-                    profile?.displayName ?? mxid.localpart ?? mxid;
+                final displayname = profile?.displayName ?? _formatUsername(mxid);
 
                 // Загружаем бейджи пользователя
                 return FutureBuilder<Map<String, dynamic>>(
@@ -147,7 +154,7 @@ class SettingsView extends StatelessWidget {
                                       iconColor: theme.colorScheme.secondary,
                                     ),
                                     label: Text(
-                                      mxid.localpart.toString(),
+                                      _formatUsername(mxid),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                     ),
@@ -309,15 +316,19 @@ class SettingsView extends StatelessWidget {
     required BuildContext context,
     required Badge badge,
   }) {
+    final message = (badge.description ?? '').trim().isNotEmpty
+        ? badge.description!.trim()
+        : badge.text.trim();
+
     return Tooltip(
-      message: badge.text, // При наведении показываем text
+      message: badge.text,
       child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
         onTap: () {
-          // При нажатии показываем description
-          if (badge.description != null && badge.description!.isNotEmpty) {
-            ScaffoldMessenger.of(context).showSnackBar(
+          if (message.isNotEmpty) {
+            ScaffoldMessenger.maybeOf(context)?.showSnackBar(
               SnackBar(
-                content: Text(badge.description!),
+                content: Text(message),
                 duration: const Duration(seconds: 2),
                 behavior: SnackBarBehavior.floating,
               ),
