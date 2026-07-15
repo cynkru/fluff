@@ -88,10 +88,11 @@ jobs:
           javac -version
             
       - name: Setup Android SDK
-        uses: amyu/setup-android@v5
+        uses: android-actions/setup-android@v3
         with:
           sdk-version: '34'
           build-tools-version: '34.0.0'
+          command-line-tools-version: 'latest'
         
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
