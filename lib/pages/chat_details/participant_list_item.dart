@@ -21,26 +21,44 @@ class ParticipantListItem extends StatelessWidget {
   }
 
   // Иконка бейджа
-  Widget _buildBadgeIcon(String badgeType, {double size = 16}) {
-    return Image.asset(
-      'assets/badges/$badgeType.png',
-      width: size,
-      height: size,
-      errorBuilder: (context, error, stackTrace) {
-        return Container(
-          width: size,
-          height: size,
-          decoration: BoxDecoration(
-            color: Colors.grey.shade200,
-            borderRadius: BorderRadius.circular(4),
-          ),
-          child: Icon(
-            Icons.star,
-            size: size * 0.7,
-            color: Colors.grey.shade600,
-          ),
-        );
+  Widget _buildBadgeIcon(
+    BuildContext context,
+    String badgeType, {
+    double size = 16,
+    String? description,
+  }) {
+    return GestureDetector(
+      onTap: () {
+        if (description != null && description.isNotEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(description),
+              duration: const Duration(seconds: 2),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
       },
+      child: Image.asset(
+        'assets/badges/$badgeType.png',
+        width: size,
+        height: size,
+        errorBuilder: (context, error, stackTrace) {
+          return Container(
+            width: size,
+            height: size,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade200,
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Icon(
+              Icons.star,
+              size: size * 0.7,
+              color: Colors.grey.shade600,
+            ),
+          );
+        },
+      ),
     );
   }
 
@@ -86,7 +104,14 @@ class ParticipantListItem extends StatelessWidget {
               if (firstBadge != null)
                 Padding(
                   padding: const EdgeInsets.only(right: 4),
-                  child: _buildBadgeIcon(firstBadge, size: 16),
+                  child: _buildBadgeIcon(
+                    context,
+                    firstBadge,
+                    size: 16,
+                    description: badges.isNotEmpty && badges.first is Map
+                        ? ((badges.first as Map)['description'] as String?)
+                        : null,
+                  ),
                 ),
               if (permissionBatch.isNotEmpty)
                 Container(
