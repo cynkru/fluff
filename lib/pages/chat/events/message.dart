@@ -295,7 +295,8 @@ class Message extends StatelessWidget {
     // Для плоского стиля: отступ сверху для группировки
     final topPadding = usePlainStyle && nextEventSameSender ? 2.0 : 8.0;
 
-    return Center(
+    return SizedBox(
+      width: double.infinity,
       child: Swipeable(
         key: ValueKey(event.eventId),
         background: const Padding(
@@ -318,9 +319,7 @@ class Message extends StatelessWidget {
           ),
           child: Column(
             mainAxisSize: .min,
-            crossAxisAlignment: usePlainStyle
-                ? CrossAxisAlignment.start
-                : (ownMessage ? CrossAxisAlignment.end : CrossAxisAlignment.start),
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
               if (displayTime || selected)
                 Padding(
@@ -446,8 +445,8 @@ class Message extends StatelessWidget {
                                   // 📦 ОСНОВНОЙ КОНТЕНТ СООБЩЕНИЯ
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: usePlainStyle
-                                          ? (ownMessage ? CrossAxisAlignment.end : CrossAxisAlignment.start)
+                                      crossAxisAlignment: ownMessage
+                                          ? CrossAxisAlignment.end
                                           : CrossAxisAlignment.start,
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
