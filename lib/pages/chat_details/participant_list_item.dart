@@ -4,10 +4,10 @@ import 'package:matrix/matrix.dart';
 
 import 'package:cynk/config/app_config.dart';
 import 'package:cynk/l10n/l10n.dart';
+import 'package:cynk/utils/badge_cache.dart';
 import 'package:cynk/widgets/member_actions_popup_menu_button.dart';
 import '../../widgets/avatar.dart';
 import 'package:cynk/widgets/matrix.dart';
-import 'dart:convert';
 
 class ParticipantListItem extends StatelessWidget {
   final User user;
@@ -17,23 +17,7 @@ class ParticipantListItem extends StatelessWidget {
   // Загрузка бейджей пользователя
   Future<Map<String, dynamic>> _loadUserBadges(BuildContext context) async {
     final client = Matrix.of(context).client;
-    try {
-      final response = await client.httpClient.get(
-        Uri.parse('https://matrix.cynk.ru/_matrix/client/v3/profile/${user.id}'),
-      );
-      
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as Map<String, dynamic>;
-        return {
-          'badges': data['badges'] ?? [],
-          'selected_badge': data['selected_badge'],
-        };
-      }
-    } catch (e) {
-      debugPrint('Error loading badges for ${user.id}: $e');
-    }
-    
-    return {'badges': [], 'selected_badge': null};
+    return BadgeCache().getBadges(client, user.id);
   }
 
   // Иконка бейджа
@@ -82,8 +66,11 @@ class ParticipantListItem extends StatelessWidget {
       future: _loadUserBadges(context),
       builder: (context, snapshot) {
         final badges = snapshot.data?['badges'] as List? ?? [];
-        // ✅ Берем ПЕРВЫЙ бейдж из списка
-        final firstBadge = badges.isNotEmpty ? badges.first['type'] as String? : null;
+        final firstBadge = badges.isNotEmpty
+            ? badges.first is Map
+                ? (badges.first as Map)['type'] as String?
+                : badges.first as String?
+            : null;
 
         return ListTile(
           onTap: () => showMemberActionsPopupMenu(context: context, user: user),

@@ -27,6 +27,7 @@ class SettingsStyleView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final usePlainStyle = AppSettings.bubbleStyle.value;
 
     const colorPickerSize = 32.0;
     final client = Matrix.of(context).client;
@@ -219,39 +220,80 @@ class SettingsStyleView extends StatelessWidget {
                               ),
                               Padding(
                                 padding: EdgeInsets.only(
-                                  left: 12 + 12 + Avatar.defaultSize,
+                                  left: 12,
                                   right: 12,
                                   top: accountConfig.wallpaperUrl == null
                                       ? 0
                                       : 12,
                                   bottom: 12,
                                 ),
-                                child: DecoratedBox(
-                                  decoration: BoxDecoration(
-                                    color: theme.bubbleColor,
-                                    borderRadius: BorderRadius.circular(
-                                      AppConfig.borderRadius,
-                                    ),
-                                  ),
-                                  child: Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 16,
-                                      vertical: 8,
-                                    ),
-                                    child: Text(
-                                      'Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor',
-                                      style: TextStyle(
-                                        color: theme.onBubbleColor,
-                                        fontSize:
-                                            AppConfig.messageFontSize *
-                                            AppSettings.fontSizeFactor.value,
+                                child: usePlainStyle
+                                    ? Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Text(
+                                                'Alice',
+                                                style: TextStyle(
+                                                  color: theme.colorScheme
+                                                      .onSurface,
+                                                  fontWeight: FontWeight.w600,
+                                                  fontSize: 13,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 4),
+                                              Icon(
+                                                Icons.verified,
+                                                size: 12,
+                                                color: theme.colorScheme.primary,
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            'Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor',
+                                            style: TextStyle(
+                                              color: theme.colorScheme.onSurface,
+                                              fontSize:
+                                                  AppConfig.messageFontSize *
+                                                  AppSettings.fontSizeFactor
+                                                      .value,
+                                            ),
+                                          ),
+                                        ],
+                                      )
+                                    : DecoratedBox(
+                                        decoration: BoxDecoration(
+                                          color: theme.bubbleColor,
+                                          borderRadius: BorderRadius.circular(
+                                            AppConfig.borderRadius,
+                                          ),
+                                        ),
+                                        child: Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 16,
+                                            vertical: 8,
+                                          ),
+                                          child: Text(
+                                            'Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor',
+                                            style: TextStyle(
+                                              color: theme.onBubbleColor,
+                                              fontSize:
+                                                  AppConfig.messageFontSize *
+                                                  AppSettings.fontSizeFactor
+                                                      .value,
+                                            ),
+                                          ),
+                                        ),
                                       ),
-                                    ),
-                                  ),
-                                ),
                               ),
                               Align(
-                                alignment: Alignment.centerLeft,
+                                alignment: usePlainStyle
+                                    ? Alignment.centerLeft
+                                    : Alignment.centerLeft,
                                 child: Padding(
                                   padding: EdgeInsets.only(
                                     right: 12,
@@ -261,28 +303,62 @@ class SettingsStyleView extends StatelessWidget {
                                         : 12,
                                     bottom: 12,
                                   ),
-                                  child: Material(
-                                    color:
-                                        theme.colorScheme.surfaceContainerHigh,
-                                    borderRadius: BorderRadius.circular(
-                                      AppConfig.borderRadius,
-                                    ),
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 16,
-                                        vertical: 8,
-                                      ),
-                                      child: Text(
-                                        'Lorem ipsum dolor sit amet',
-                                        style: TextStyle(
-                                          color: theme.colorScheme.onSurface,
-                                          fontSize:
-                                              AppConfig.messageFontSize *
-                                              AppSettings.fontSizeFactor.value,
+                                  child: usePlainStyle
+                                      ? Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Text(
+                                                  'You',
+                                                  style: TextStyle(
+                                                    color: theme.colorScheme
+                                                        .onSurface,
+                                                    fontWeight: FontWeight.w600,
+                                                    fontSize: 13,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              'Lorem ipsum dolor sit amet',
+                                              style: TextStyle(
+                                                color: theme.colorScheme
+                                                    .onSurface,
+                                                fontSize:
+                                                    AppConfig.messageFontSize *
+                                                    AppSettings.fontSizeFactor
+                                                        .value,
+                                              ),
+                                            ),
+                                          ],
+                                        )
+                                      : Material(
+                                          color:
+                                              theme.colorScheme.surfaceContainerHigh,
+                                          borderRadius: BorderRadius.circular(
+                                            AppConfig.borderRadius,
+                                          ),
+                                          child: Padding(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 16,
+                                              vertical: 8,
+                                            ),
+                                            child: Text(
+                                              'Lorem ipsum dolor sit amet',
+                                              style: TextStyle(
+                                                color: theme.colorScheme.onSurface,
+                                                fontSize:
+                                                    AppConfig.messageFontSize *
+                                                    AppSettings.fontSizeFactor
+                                                        .value,
+                                              ),
+                                            ),
+                                          ),
                                         ),
-                                      ),
-                                    ),
-                                  ),
                                 ),
                               ),
                             ],

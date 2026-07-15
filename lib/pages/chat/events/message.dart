@@ -11,6 +11,7 @@ import 'package:cynk/config/setting_keys.dart';
 import 'package:cynk/config/themes.dart';
 import 'package:cynk/l10n/l10n.dart';
 import 'package:cynk/utils/adaptive_bottom_sheet.dart';
+import 'package:cynk/utils/badge_cache.dart';
 import 'package:cynk/utils/date_time_extension.dart';
 import 'package:cynk/utils/file_description.dart';
 import 'package:cynk/utils/matrix_sdk_extensions/matrix_locals.dart';
@@ -75,6 +76,57 @@ class Message extends StatelessWidget {
     this.isCollapsed = false,
     super.key,
   });
+
+  Widget _buildBadgeIcon(String badgeType, {double size = 14}) {
+    return Image.asset(
+      'assets/badges/$badgeType.png',
+      width: size,
+      height: size,
+      errorBuilder: (context, error, stackTrace) {
+        return Icon(
+          Icons.star,
+          size: size,
+          color: Colors.grey.shade600,
+        );
+      },
+    );
+  }
+
+  Widget _buildAuthorRow(
+    BuildContext context, {
+    required String displayName,
+    required bool showBadge,
+    required TextStyle textStyle,
+    required bool showShadow,
+  }) {
+    return FutureBuilder<Map<String, dynamic>>(
+      future: BadgeCache().getBadges(event.room.client, event.senderId),
+      builder: (context, badgeSnapshot) {
+        final badges = badgeSnapshot.data?['badges'] as List? ?? [];
+        final firstBadge = badges.isNotEmpty
+            ? badges.first is Map
+                ? (badges.first as Map)['type'] as String?
+                : badges.first as String?
+            : null;
+
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              displayName,
+              style: textStyle,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            if (showBadge && firstBadge != null) ...[
+              const SizedBox(width: 4),
+              _buildBadgeIcon(firstBadge, size: 12),
+            ],
+          ],
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -396,9 +448,36 @@ class Message extends StatelessWidget {
                                               left: 8.0,
                                               bottom: 4,
                                             ),
-                                            child:
-                                                ownMessage ||
-                                                    event.room.isDirectChat
+                                            child: usePlainStyle
+                                                ? FutureBuilder<User?>(
+                                                    future: event.fetchSenderUser(),
+                                                    builder: (context, snapshot) {
+                                                      final displayname =
+                                                          snapshot.data
+                                                              ?.calcDisplayname() ??
+                                                          event
+                                                              .senderFromMemoryOrFallback
+                                                              .calcDisplayname();
+                                                      return _buildAuthorRow(
+                                                        context,
+                                                        displayName: displayname,
+                                                        showBadge: true,
+                                                        showShadow: !wallpaperMode,
+                                                        textStyle: TextStyle(
+                                                          fontSize: 13,
+                                                          fontWeight:
+                                                              FontWeight.w600,
+                                                          color:
+                                                              theme.brightness ==
+                                                                      Brightness.light
+                                                                  ? displayname.color
+                                                                  : displayname.lightColorText,
+                                                        ),
+                                                      );
+                                                    },
+                                                  )
+                                                : ownMessage ||
+                                                      event.room.isDirectChat
                                                 ? const SizedBox(height: 12)
                                                 : FutureBuilder<User?>(
                                                     future: event
@@ -410,9 +489,12 @@ class Message extends StatelessWidget {
                                                           event
                                                               .senderFromMemoryOrFallback
                                                               .calcDisplayname();
-                                                      return Text(
-                                                        displayname,
-                                                        style: TextStyle(
+                                                      return _buildAuthorRow(
+                                                        context,
+                                                        displayName: displayname,
+                                                        showBadge: false,
+                                                        showShadow: !wallpaperMode,
+                                                        textStyle: TextStyle(
                                                           fontSize: 11,
                                                           fontWeight:
                                                               FontWeight.bold,
@@ -441,9 +523,6 @@ class Message extends StatelessWidget {
                                                                   ),
                                                                 ],
                                                         ),
-                                                        maxLines: 1,
-                                                        overflow: TextOverflow
-                                                            .ellipsis,
                                                       );
                                                     },
                                                   ),
