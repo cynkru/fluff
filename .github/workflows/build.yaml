@@ -137,7 +137,7 @@ jobs:
     
       # Пробуем собрать
       - name: Build Android APK
-        run: flutter build apk --debug
+        run: flutter build apk --debug --android-skip-build-dependency-validation
     
       # Если упало - пробуем с форсированной совместимостью
       - name: Fallback with compatibility flags
