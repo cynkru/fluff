@@ -91,50 +91,53 @@ class SettingsChangelogController extends State<SettingsChangelog> {
             }
 
             final release = snapshot.data!;
-            return ListView(
+            return Padding(
               padding: const EdgeInsets.all(16),
-              children: [
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                release.name,
-                                style: theme.textTheme.titleLarge,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  release.name,
+                                  style: theme.textTheme.titleLarge,
+                                ),
                               ),
-                            ),
-                            TextButton.icon(
-                              onPressed: () => launchUrlString(
-                                release.htmlUrl,
-                                mode: LaunchMode.externalApplication,
+                              TextButton.icon(
+                                onPressed: () => launchUrlString(
+                                  release.htmlUrl,
+                                  mode: LaunchMode.externalApplication,
+                                ),
+                                icon: const Icon(Icons.open_in_new_outlined),
+                                label: const Text('GitHub'),
                               ),
-                              icon: const Icon(Icons.open_in_new_outlined),
-                              label: const Text('GitHub'),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Тег: ${release.tag}',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.secondary,
+                            ],
                           ),
-                        ),
-                      ],
+                          const SizedBox(height: 8),
+                          Text(
+                            'Тег: ${release.tag}',
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.colorScheme.secondary,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  release.body.replaceAll('\r\n', '\n').trim(),
-                  style: theme.textTheme.bodyMedium,
-                ),
-              ],
+                  const SizedBox(height: 16),
+                  SelectableText(
+                    release.body.replaceAll('\r\n', '\n').trim(),
+                    style: theme.textTheme.bodyMedium,
+                  ),
+                ],
+              ),
             );
           },
         ),
