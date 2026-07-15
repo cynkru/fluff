@@ -211,7 +211,8 @@ class Message extends StatelessWidget {
 
     final enterThread = this.enterThread;
 
-    return Center(
+    return SizedBox(
+      width: double.infinity,
       child: Swipeable(
         key: ValueKey(event.eventId),
         background: const Padding(
@@ -234,7 +235,7 @@ class Message extends StatelessWidget {
           ),
           child: Column(
             mainAxisSize: .min,
-            crossAxisAlignment: ownMessage ? .end : .start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
               if (displayTime || selected)
                 Padding(
