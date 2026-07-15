@@ -63,7 +63,7 @@ jobs:
   build-android:
     needs: prepare
     if: ${{ github.event.inputs.platform == 'all' || github.event.inputs.platform == 'android' }}
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
     
