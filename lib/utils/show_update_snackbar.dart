@@ -81,7 +81,6 @@ abstract class UpdateNotifier {
                       h2: Theme.of(dialogContext).textTheme.titleMedium,
                       h3: Theme.of(dialogContext).textTheme.titleSmall,
                       listBullet: Theme.of(dialogContext).textTheme.bodyMedium,
-                      bullet: Theme.of(dialogContext).textTheme.bodyMedium,
                     ),
                   ),
                 ],

@@ -135,7 +135,6 @@ class SettingsChangelogController extends State<SettingsChangelog> {
                       h2: theme.textTheme.titleMedium,
                       h3: theme.textTheme.titleSmall,
                       listBullet: theme.textTheme.bodyMedium,
-                      bullet: theme.textTheme.bodyMedium,
                       checkbox: theme.textTheme.bodyMedium,
                       code: theme.textTheme.bodyMedium?.copyWith(
                         fontFamily: 'monospace',
