@@ -70,7 +70,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "ru.cynk.messenger"
+        applicationId = "ru.cynk.chat"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode

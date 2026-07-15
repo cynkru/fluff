@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "315473535215",
+    "project_id": "cynk-35c04",
+    "storage_bucket": "cynk-35c04.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:315473535215:android:99297bd61f2963cd16bb1a",
+        "android_client_info": {
+          "package_name": "ru.cynk.chat"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBO9S3LFDHXuNdVmwPzbW0-bOW6W2kR-lo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

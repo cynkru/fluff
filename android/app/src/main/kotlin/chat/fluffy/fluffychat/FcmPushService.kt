@@ -1,4 +1,4 @@
-/*package ru.cynk.fluffychat
+package ru.cynk.fluffychat
 
 import com.famedly.fcm_shared_isolate.FcmSharedIsolateService
 
@@ -25,4 +25,3 @@ class FcmPushService : FcmSharedIsolateService() {
         }
     }
 }
-*/
