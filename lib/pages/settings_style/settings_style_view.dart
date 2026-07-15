@@ -224,60 +224,63 @@ class SettingsStyleView extends StatelessWidget {
                                 ),
                               ),
                               // ✅ Превью сообщения с учетом стиля
-                              Padding(
-                                padding: EdgeInsets.only(
-                                  left: 12 + 12 + Avatar.defaultSize,
-                                  right: 12,
-                                  top: accountConfig.wallpaperUrl == null
-                                      ? 0
-                                      : 12,
-                                  bottom: 12,
-                                ),
-                                child: usePlainStyle
-                                    ? Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 8.0,
-                                          vertical: 2.0,
-                                        ),
-                                        child: Text(
-                                          'Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor',
-                                          style: TextStyle(
-                                            color: theme.colorScheme.onSurface,
-                                            fontSize:
-                                                AppConfig.messageFontSize *
-                                                AppSettings.fontSizeFactor
-                                                    .value,
-                                          ),
-                                        ),
-                                      )
-                                    : DecoratedBox(
-                                        decoration: BoxDecoration(
-                                          color: theme.bubbleColor,
-                                          borderRadius: BorderRadius.circular(
-                                            AppConfig.borderRadius,
-                                          ),
-                                        ),
-                                        child: Padding(
+                              Align(
+                                alignment: Alignment.centerLeft,
+                                child: Padding(
+                                  padding: EdgeInsets.only(
+                                    left: 12,
+                                    right: 12,
+                                    top: accountConfig.wallpaperUrl == null
+                                        ? 0
+                                        : 12,
+                                    bottom: 12,
+                                  ),
+                                  child: usePlainStyle
+                                      ? Padding(
                                           padding: const EdgeInsets.symmetric(
-                                            horizontal: 16,
-                                            vertical: 8,
+                                            horizontal: 8.0,
+                                            vertical: 2.0,
                                           ),
                                           child: Text(
                                             'Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor',
                                             style: TextStyle(
-                                              color: theme.onBubbleColor,
+                                              color: theme.colorScheme.onSurface,
                                               fontSize:
                                                   AppConfig.messageFontSize *
                                                   AppSettings.fontSizeFactor
                                                       .value,
                                             ),
                                           ),
+                                        )
+                                      : DecoratedBox(
+                                          decoration: BoxDecoration(
+                                            color: theme.bubbleColor,
+                                            borderRadius: BorderRadius.circular(
+                                              AppConfig.borderRadius,
+                                            ),
+                                          ),
+                                          child: Padding(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 16,
+                                              vertical: 8,
+                                            ),
+                                            child: Text(
+                                              'Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor',
+                                              style: TextStyle(
+                                                color: theme.onBubbleColor,
+                                                fontSize:
+                                                    AppConfig.messageFontSize *
+                                                    AppSettings.fontSizeFactor
+                                                        .value,
+                                              ),
+                                            ),
+                                          ),
                                         ),
-                                      ),
+                                ),
                               ),
                               // Второе сообщение (своё)
                               Align(
-                                alignment: Alignment.centerLeft,
+                                alignment: Alignment.centerRight,
                                 child: Padding(
                                   padding: EdgeInsets.only(
                                     right: 12,
@@ -296,8 +299,7 @@ class SettingsStyleView extends StatelessWidget {
                                           child: Text(
                                             'Lorem ipsum dolor sit amet',
                                             style: TextStyle(
-                                              color: theme.colorScheme
-                                                  .onSurface,
+                                              color: theme.colorScheme.onSurface,
                                               fontSize:
                                                   AppConfig.messageFontSize *
                                                   AppSettings.fontSizeFactor
@@ -306,8 +308,7 @@ class SettingsStyleView extends StatelessWidget {
                                           ),
                                         )
                                       : Material(
-                                          color: theme.colorScheme
-                                              .surfaceContainerHigh,
+                                          color: theme.colorScheme.surfaceContainerHigh,
                                           borderRadius: BorderRadius.circular(
                                             AppConfig.borderRadius,
                                           ),
@@ -319,11 +320,9 @@ class SettingsStyleView extends StatelessWidget {
                                             child: Text(
                                               'Lorem ipsum dolor sit amet',
                                               style: TextStyle(
-                                                color: theme.colorScheme
-                                                    .onSurface,
+                                                color: theme.onBubbleColor,
                                                 fontSize:
-                                                    AppConfig
-                                                        .messageFontSize *
+                                                    AppConfig.messageFontSize *
                                                     AppSettings.fontSizeFactor
                                                         .value,
                                               ),

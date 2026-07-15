@@ -24,6 +24,7 @@ import 'message_content.dart';
 import 'message_reactions.dart';
 import 'reply_content.dart';
 import 'state_message.dart';
+import 'unknown.dart';
 
 // Модель для бейджа
 class Badge {
@@ -164,7 +165,21 @@ class Message extends StatelessWidget {
       if (event.type.startsWith('m.call.')) {
         return const SizedBox.shrink();
       }
-      return StateMessage(event, onExpand: onExpand, isCollapsed: isCollapsed);
+      if ([
+        'm.room.member',
+        'm.room.create',
+        'm.room.name',
+        'm.room.topic',
+        'm.room.avatar',
+        'm.room.power_levels',
+        'm.room.join_rules',
+        'm.room.history_visibility',
+        'm.room.guest_access',
+        'm.room.encryption',
+      ].contains(event.type)) {
+        return StateMessage(event, onExpand: onExpand, isCollapsed: isCollapsed);
+      }
+      return UnknownEventWidget(event: event);
     }
 
     if (event.type == EventTypes.Message &&
@@ -408,21 +423,14 @@ class Message extends StatelessWidget {
                                 children: [
                                   // ⬅️ ЛЕВАЯ ЧАСТЬ (только для пузырькового стиля)
                                   if (!usePlainStyle) ...[
-                                    // Для СВОИХ сообщений - слева пусто (только если не подряд)
-                                    if (ownMessage && !nextEventSameSender)
-                                      const SizedBox(width: Avatar.defaultSize),
-                                    
-                                    // Для СВОИХ подряд идущих - иконка статуса слева
-                                    if (ownMessage && nextEventSameSender)
+                                    if (!ownMessage) ...[
+                                      if (!nextEventSameSender)
+                                        _buildAvatar(context)
+                                      else
+                                        const SizedBox(width: 8),
+                                    ] else if (nextEventSameSender) ...[
                                       _buildStatusIcon(context),
-                                    
-                                    // Для ЧУЖИХ сообщений - аватар слева
-                                    if (!ownMessage && !nextEventSameSender)
-                                      _buildAvatar(context),
-                                    
-                                    // Для ЧУЖИХ подряд идущих - пусто слева
-                                    if (!ownMessage && nextEventSameSender)
-                                      const SizedBox(width: Avatar.defaultSize),
+                                    ],
                                   ],
 
                                   // Кнопка выбора (для мультивыбора)
@@ -964,11 +972,11 @@ class Message extends StatelessWidget {
                                     
                                     // Для СВОИХ подряд идущих - пусто справа
                                     if (ownMessage && nextEventSameSender)
-                                      const SizedBox(width: Avatar.defaultSize),
+                                      const SizedBox(width: 8),
                                     
                                     // Для ЧУЖИХ сообщений - пусто справа
                                     if (!ownMessage)
-                                      const SizedBox(width: Avatar.defaultSize),
+                                      const SizedBox(width: 8),
                                   ],
                                 ],
                               ),

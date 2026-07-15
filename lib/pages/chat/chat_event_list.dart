@@ -9,7 +9,6 @@ import 'package:cynk/config/themes.dart';
 import 'package:cynk/l10n/l10n.dart';
 import 'package:cynk/pages/chat/chat.dart';
 import 'package:cynk/pages/chat/events/message.dart';
-import 'package:cynk/pages/chat/events/unknown.dart';
 import 'package:cynk/pages/chat/seen_by_row.dart';
 import 'package:cynk/pages/chat/typing_indicators.dart';
 import 'package:cynk/utils/account_config.dart';
@@ -129,72 +128,8 @@ class ChatEventList extends StatelessWidget {
             // 🔥 ЛОГИКА: Обработка событий
             // ================================================================
 
-            // 1. Удалённые сообщения (redacted)
-            if (event.redacted) {
-              final reason = event.redactedBecause?.content['reason'] as String?;
-              if (reason != null && reason.isNotEmpty) {
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 2),
-                  child: UnknownEventWidget(event: event),
-                );
-              }
-              return const SizedBox.shrink();
-            }
-
-            // 2. m.room.member — показываем только join/leave
-            if (event.type == 'm.room.member') {
-              final membership = event.content['membership'] as String?;
-              
-              if (membership == 'join' || membership == 'leave') {
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 2),
-                  child: UnknownEventWidget(event: event),
-                );
-              }
-              
-              // Смена аватара/имени — скрываем
-              final oldName = event.prevContent?['displayname'] as String?;
-              final newName = event.content['displayname'] as String?;
-              final oldAvatar = event.prevContent?['avatar_url'] as String?;
-              final newAvatar = event.content['avatar_url'] as String?;
-              
-              if ((oldName != newName) || (oldAvatar != newAvatar)) {
-                return const SizedBox.shrink();
-              }
-              
-              return const SizedBox.shrink();
-            }
-
-            // 3. Скрываем системные события комнаты
-            // m.room.create — показываем (важно для истории)
-            // Все остальные — скрываем
-            if (event.type == 'm.room.name' ||
-                event.type == 'm.room.topic' ||
-                event.type == 'm.room.avatar' ||
-                event.type == 'm.room.power_levels' ||
-                event.type == 'm.room.join_rules' ||
-                event.type == 'm.room.history_visibility' ||
-                event.type == 'm.room.guest_access' ||
-                event.type == 'm.room.encryption') {
-              return const SizedBox.shrink();
-            }
-
-            // 4. m.room.create — показываем как системное событие
-            if (event.type == 'm.room.create') {
-              return Padding(
-                padding: const EdgeInsets.symmetric(vertical: 2),
-                child: UnknownEventWidget(event: event),
-              );
-            }
-
-            // 5. Неизвестный тип сообщения
-            if (!isKnownMessageType(event)) {
-              return Padding(
-                padding: const EdgeInsets.symmetric(vertical: 2),
-                child: UnknownEventWidget(event: event),
-              );
-            }
-
+            // Сначала пробуем отрисовать событие обычным сообщением/состоянием.
+            // Если виджет сам не умеет его отобразить, он покажет подходящий fallback.
             // ================================================================
             // КОНЕЦ ЛОГИКИ
             // ================================================================
