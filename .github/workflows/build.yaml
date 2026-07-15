@@ -90,8 +90,7 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
         with:
-          sdk-version: '34'
-          build-tools-version: '34.0.0'
+          accept-android-sdk-licenses: true  # ← Принять лицензии автоматически
           command-line-tools-version: 'latest'
         
       - name: Setup Flutter
