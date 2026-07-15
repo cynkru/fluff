@@ -2,7 +2,6 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import 'package:collection/collection.dart';
-import 'package:matrix/matrix.dart';
 import 'package:scroll_to_index/scroll_to_index.dart';
 
 import 'package:cynk/config/themes.dart';
@@ -38,6 +37,8 @@ class ChatEventList extends StatelessWidget {
     );
     final animateInEventIndex = controller.animateInEventIndex;
 
+    // create a map of eventId --> index to greatly improve performance of
+    // ListView's findChildIndexCallback
     final thisEventsKeyMap = <String, int>{};
     for (var i = 0; i < events.length; i++) {
       thisEventsKeyMap[events[i].eventId] = i;
@@ -61,6 +62,7 @@ class ChatEventList extends StatelessWidget {
             : ScrollViewKeyboardDismissBehavior.manual,
         childrenDelegate: SliverChildBuilderDelegate(
           (BuildContext context, int i) {
+            // Footer to display typing indicator and read receipts:
             if (i == 0) {
               if (timeline.canRequestFuture) {
                 return Center(
@@ -84,6 +86,7 @@ class ChatEventList extends StatelessWidget {
               );
             }
 
+            // Request history button or progress indicator:
             if (i == events.length + 1) {
               if (controller.activeThreadId != null ||
                   !timeline.canRequestHistory) {
@@ -115,6 +118,7 @@ class ChatEventList extends StatelessWidget {
             }
             i--;
 
+            // The message at this index:
             final event = events[i];
             final animateIn =
                 animateInEventIndex != null &&
@@ -124,16 +128,7 @@ class ChatEventList extends StatelessWidget {
             final nextEvent = i + 1 < events.length ? events[i + 1] : null;
             final previousEvent = i > 0 ? events[i - 1] : null;
 
-            // ================================================================
-            // 🔥 ЛОГИКА: Обработка событий
-            // ================================================================
-
-            // Сначала пробуем отрисовать событие обычным сообщением/состоянием.
-            // Если виджет сам не умеет его отобразить, он покажет подходящий fallback.
-            // ================================================================
-            // КОНЕЦ ЛОГИКИ
-            // ================================================================
-
+            // Collapsed state event
             final canExpand =
                 event.isCollapsedState &&
                 nextEvent?.isCollapsedState == true &&

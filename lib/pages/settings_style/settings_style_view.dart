@@ -8,7 +8,6 @@ import 'package:matrix/matrix.dart';
 import 'package:cynk/config/setting_keys.dart';
 import 'package:cynk/config/themes.dart';
 import 'package:cynk/l10n/l10n.dart';
-import 'package:cynk/pages/chat/events/message.dart';
 import 'package:cynk/pages/chat/events/state_message.dart';
 import 'package:cynk/utils/account_config.dart';
 import 'package:cynk/utils/color_value.dart';
@@ -28,7 +27,6 @@ class SettingsStyleView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final usePlainStyle = AppSettings.bubbleStyle.value;
 
     const colorPickerSize = 32.0;
     final client = Matrix.of(context).client;
@@ -146,22 +144,11 @@ class SettingsStyleView extends StatelessWidget {
                 ),
               ),
             ),
-            // ✅ Исправленный Switch с правильным обновлением
-            StatefulBuilder(
-              builder: (context, setState) {
-                return SwitchListTile.adaptive(
-                  title: const Text('Плоский стиль сообщений'),
-                  subtitle: const Text('Выкл — пузыри, Вкл — текст без рамок'),
-                  value: AppSettings.bubbleStyle.value,
-                  onChanged: (newValue) async {
-                    await AppSettings.bubbleStyle.setItem(newValue);
-                    // ✅ Принудительно обновляем UI
-                    setState(() {});
-                    // ✅ Также обновляем через controller, если нужно
-                    controller.setState(() {});
-                  },
-                );
-              },
+            SwitchListTile.adaptive(
+              title: const Text('Плоский стиль сообщений'),
+              subtitle: const Text('Выкл — пузыри, Вкл — текст без рамок'),
+              value: AppSettings.bubbleStyle.value,
+              onChanged: (value) => AppSettings.bubbleStyle.setItem(value),
             ),
             StreamBuilder(
               stream: client.onSync.stream.where(
@@ -223,66 +210,43 @@ class SettingsStyleView extends StatelessWidget {
                                   stateKey: client.userID!,
                                 ),
                               ),
-                              // ✅ Превью сообщения с учетом стиля
+                              Padding(
+                                padding: EdgeInsets.only(
+                                  left: 12 + 12 + Avatar.defaultSize,
+                                  right: 12,
+                                  top: accountConfig.wallpaperUrl == null
+                                      ? 0
+                                      : 12,
+                                  bottom: 12,
+                                ),
+                                child: DecoratedBox(
+                                  decoration: BoxDecoration(
+                                    color: theme.bubbleColor,
+                                    borderRadius: BorderRadius.circular(
+                                      AppConfig.borderRadius,
+                                    ),
+                                  ),
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 8,
+                                    ),
+                                    child: Text(
+                                      'Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor',
+                                      style: TextStyle(
+                                        color: theme.onBubbleColor,
+                                        fontSize:
+                                            AppConfig.messageFontSize *
+                                            AppSettings.fontSizeFactor.value,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
                               Align(
                                 alignment: Alignment.centerLeft,
                                 child: Padding(
                                   padding: EdgeInsets.only(
-                                    left: 12,
-                                    right: 12,
-                                    top: accountConfig.wallpaperUrl == null
-                                        ? 0
-                                        : 12,
-                                    bottom: 12,
-                                  ),
-                                  child: usePlainStyle
-                                      ? Padding(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 8.0,
-                                            vertical: 2.0,
-                                          ),
-                                          child: Text(
-                                            'Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor',
-                                            style: TextStyle(
-                                              color: theme.colorScheme.onSurface,
-                                              fontSize:
-                                                  AppConfig.messageFontSize *
-                                                  AppSettings.fontSizeFactor
-                                                      .value,
-                                            ),
-                                          ),
-                                        )
-                                      : DecoratedBox(
-                                          decoration: BoxDecoration(
-                                            color: theme.bubbleColor,
-                                            borderRadius: BorderRadius.circular(
-                                              AppConfig.borderRadius,
-                                            ),
-                                          ),
-                                          child: Padding(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 16,
-                                              vertical: 8,
-                                            ),
-                                            child: Text(
-                                              'Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor',
-                                              style: TextStyle(
-                                                color: theme.onBubbleColor,
-                                                fontSize:
-                                                    AppConfig.messageFontSize *
-                                                    AppSettings.fontSizeFactor
-                                                        .value,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                ),
-                              ),
-                              // Второе сообщение (своё)
-                              Align(
-                                alignment: Alignment.centerRight,
-                                child: Padding(
-                                  padding: EdgeInsets.only(
                                     right: 12,
                                     left: 12,
                                     top: accountConfig.wallpaperUrl == null
@@ -290,45 +254,28 @@ class SettingsStyleView extends StatelessWidget {
                                         : 12,
                                     bottom: 12,
                                   ),
-                                  child: usePlainStyle
-                                      ? Padding(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 8.0,
-                                            vertical: 2.0,
-                                          ),
-                                          child: Text(
-                                            'Lorem ipsum dolor sit amet',
-                                            style: TextStyle(
-                                              color: theme.colorScheme.onSurface,
-                                              fontSize:
-                                                  AppConfig.messageFontSize *
-                                                  AppSettings.fontSizeFactor
-                                                      .value,
-                                            ),
-                                          ),
-                                        )
-                                      : Material(
-                                          color: theme.colorScheme.surfaceContainerHigh,
-                                          borderRadius: BorderRadius.circular(
-                                            AppConfig.borderRadius,
-                                          ),
-                                          child: Padding(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 16,
-                                              vertical: 8,
-                                            ),
-                                            child: Text(
-                                              'Lorem ipsum dolor sit amet',
-                                              style: TextStyle(
-                                                color: theme.onBubbleColor,
-                                                fontSize:
-                                                    AppConfig.messageFontSize *
-                                                    AppSettings.fontSizeFactor
-                                                        .value,
-                                              ),
-                                            ),
-                                          ),
+                                  child: Material(
+                                    color:
+                                        theme.colorScheme.surfaceContainerHigh,
+                                    borderRadius: BorderRadius.circular(
+                                      AppConfig.borderRadius,
+                                    ),
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                        vertical: 8,
+                                      ),
+                                      child: Text(
+                                        'Lorem ipsum dolor sit amet',
+                                        style: TextStyle(
+                                          color: theme.colorScheme.onSurface,
+                                          fontSize:
+                                              AppConfig.messageFontSize *
+                                              AppSettings.fontSizeFactor.value,
                                         ),
+                                      ),
+                                    ),
+                                  ),
                                 ),
                               ),
                             ],
