@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 
+import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher_string.dart';
 
@@ -120,21 +121,26 @@ class SettingsChangelogController extends State<SettingsChangelog> {
                               ),
                             ],
                           ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Тег: ${release.tag}',
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: theme.colorScheme.secondary,
-                            ),
-                          ),
                         ],
                       ),
                     ),
                   ),
                   const SizedBox(height: 16),
-                  SelectableText(
-                    release.body.replaceAll('\r\n', '\n').trim(),
-                    style: theme.textTheme.bodyMedium,
+                  MarkdownBody(
+                    data: release.body.replaceAll('\r\n', '\n').trim(),
+                    selectable: true,
+                    styleSheet: MarkdownStyleSheet.fromTheme(theme).copyWith(
+                      p: theme.textTheme.bodyMedium,
+                      h1: theme.textTheme.titleLarge,
+                      h2: theme.textTheme.titleMedium,
+                      h3: theme.textTheme.titleSmall,
+                      listBullet: theme.textTheme.bodyMedium,
+                      bullet: theme.textTheme.bodyMedium,
+                      checkbox: theme.textTheme.bodyMedium,
+                      code: theme.textTheme.bodyMedium?.copyWith(
+                        fontFamily: 'monospace',
+                      ),
+                    ),
                   ),
                 ],
               ),

@@ -38,6 +38,9 @@ abstract class AppConfig {
   static const String supportUrl =
       'https://support.cynk.ru';
   static const String changelogUrl = 'https://changelog.cynk.ru';
+  static const String gitHubRepo = 'cynkru/fluff';
+  static const String gitHubLatestReleaseUrl =
+      'https://api.github.com/repos/$gitHubRepo/releases/latest';
   static const String donationUrl = 'https://donation.cynk.ru';
 
   static const Set<String> defaultReactions = {'👍', '❤️', '😂', '😮', '😢'};
