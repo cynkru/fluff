@@ -134,15 +134,25 @@ class Message extends StatelessWidget {
     final usePlainStyle = AppSettings.bubbleStyle.value;
 
     if (event.type.startsWith('c.')) {
+      final body = event.content.tryGet<String>('body')?.trim();
+
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 6.0),
         child: Align(
           alignment: Alignment.centerLeft,
-          child: Text(
-            'данное сообщение не поддерживается, пожалуйста, обновите приложение или обратитесь в поддержку',
-            style: TextStyle(
-              fontStyle: FontStyle.italic,
-              color: theme.colorScheme.secondary,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surfaceContainerHigh,
+              borderRadius: BorderRadius.circular(AppConfig.borderRadius),
+            ),
+            child: Text(
+              body?.isNotEmpty == true
+                  ? body
+                  : 'Данное сообщение не поддерживается, пожалуйста, обновите приложение до последней версии.',
+              style: TextStyle(
+                color: theme.colorScheme.onSurface,
+              ),
             ),
           ),
         ),
