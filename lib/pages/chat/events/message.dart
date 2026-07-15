@@ -133,9 +133,10 @@ class Message extends StatelessWidget {
     final theme = Theme.of(context);
     final usePlainStyle = AppSettings.bubbleStyle.value;
 
+    // ========== ПЕРВАЯ ПРОВЕРКА: кастомные типы ==========
     if (event.type.startsWith('c.')) {
-      final body = event.content.tryGet<String>('body')?.trim();
-
+      final body = event.content.tryGet<String>('body')?.trim() ?? '';
+      
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 6.0),
         child: Align(
@@ -147,7 +148,9 @@ class Message extends StatelessWidget {
               borderRadius: BorderRadius.circular(AppConfig.borderRadius),
             ),
             child: Text(
-              'Данное сообщение не поддерживается, пожалуйста, обновите приложение до последней версии.',
+              body.isNotEmpty 
+                  ? body 
+                  : 'Данное сообщение не поддерживается, пожалуйста, обновите приложение до последней версии.',
               style: TextStyle(
                 color: theme.colorScheme.onSurface,
               ),
@@ -157,6 +160,7 @@ class Message extends StatelessWidget {
       );
     }
 
+    // ========== ВТОРАЯ ПРОВЕРКА: стандартные типы ==========
     if (!{
       EventTypes.Message,
       EventTypes.Sticker,
