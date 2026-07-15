@@ -147,9 +147,7 @@ class Message extends StatelessWidget {
               borderRadius: BorderRadius.circular(AppConfig.borderRadius),
             ),
             child: Text(
-              body?.isNotEmpty == true
-                  ? body
-                  : 'Данное сообщение не поддерживается, пожалуйста, обновите приложение до последней версии.',
+              'Данное сообщение не поддерживается, пожалуйста, обновите приложение до последней версии.',
               style: TextStyle(
                 color: theme.colorScheme.onSurface,
               ),
