@@ -263,6 +263,11 @@ class SettingsView extends StatelessWidget {
               title: Text(L10n.of(context).about),
               onTap: () => PlatformInfos.showDialog(context),
             ),
+            ListTile(
+              leading: const Icon(Icons.history_outlined),
+              title: const Text('Changelog'),
+              onTap: () => context.go('/rooms/settings/changelog'),
+            ),
             Divider(color: theme.dividerColor),
             ListTile(
               leading: const Icon(Icons.logout_outlined),

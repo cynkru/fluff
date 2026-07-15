@@ -30,6 +30,7 @@ import 'package:cynk/pages/settings_homeserver/settings_homeserver.dart';
 import 'package:cynk/pages/settings_ignore_list/settings_ignore_list.dart';
 import 'package:cynk/pages/settings_notifications/settings_notifications.dart';
 import 'package:cynk/pages/settings_password/settings_password.dart';
+import 'package:cynk/pages/settings_changelog/settings_changelog.dart';
 import 'package:cynk/pages/settings_security/settings_security.dart';
 import 'package:cynk/pages/settings_style/settings_style.dart';
 //import 'package:cynk/pages/sign_in/sign_in_page.dart';
@@ -284,6 +285,15 @@ abstract class AppRoutes {
                           const SettingsHomeserver(),
                         );
                       },
+                      redirect: loggedOutRedirect,
+                    ),
+                    GoRoute(
+                      path: 'changelog',
+                      pageBuilder: (context, state) => defaultPageBuilder(
+                        context,
+                        state,
+                        const SettingsChangelog(),
+                      ),
                       redirect: loggedOutRedirect,
                     ),
                     GoRoute(

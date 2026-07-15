@@ -47,6 +47,12 @@ abstract class PlatformInfos {
     return version;
   }
 
+  static Future<String> getVersionTag() async {
+    final version = await getVersion();
+    final clean = version.split('+').first.trim();
+    return clean.isEmpty ? 'v$version' : 'v$clean';
+  }
+
   static void showDialog(BuildContext context) async {
     final version = await PlatformInfos.getVersion();
     showAboutDialog(
