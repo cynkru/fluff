@@ -3025,5 +3025,111 @@
     "theProcessWasCanceled": "Процесс был отменен.",
     "noMoreResultsFound": "Ничего не найдено",
     "pleaseEnterRegistrationToken": "Введите токен регистрации",
-    "passwordsDoNotMatch": "Пароли не совпадают"
+    "passwordsDoNotMatch": "Пароли не совпадают",
+        "countInvited": "{count} приглашен(ы)",
+    "@countInvited": {
+        "type": "String",
+        "placeholders": {
+            "count": {
+                "type": "int"
+            }
+        }
+    },
+    "unreadChats": "{unreadCount, plural, =1{1 непрочитанный чат} other{{unreadCount} непрочитанных чатов}}",
+    "@unreadChats": {
+        "type": "String",
+        "placeholders": {
+            "unreadCount": {
+                "type": "int"
+            }
+        }
+    },
+    "loadCountMoreParticipants": "Загрузить еще {count} участников",
+    "@loadCountMoreParticipants": {
+        "type": "String",
+        "placeholders": {
+            "count": {
+                "type": "int"
+            }
+        }
+    },
+    "unreadChatsInApp": "{appname}: {unread} непрочитанных чатов",
+    "@unreadChatsInApp": {
+        "type": "String",
+        "placeholders": {
+            "appname": {
+                "type": "String"
+            },
+            "unread": {
+                "type": "String"
+            }
+        }
+    },
+    "thereAreCountUsersBlocked": "В данный момент заблокировано {count} пользователей.",
+    "@thereAreCountUsersBlocked": {
+        "type": "String",
+        "count": {}
+    },
+    "countVotes": "{count, plural, =1{1 голос} other{{count} голосов}}",
+    "@countVotes": {
+        "type": "int",
+        "placeholders": {
+            "count": {
+                "type": "int"
+            }
+        }
+    },
+    "countReplies": "{count, plural, =1{1 ответ} other{{count} ответов}}",
+    "@countReplies": {
+        "type": "int",
+        "placeholders": {
+            "count": {
+                "type": "int"
+            }
+        }
+    },
+    "federationBaseUrl": "Базовый URL федерации",
+    "@federationBaseUrl": {},
+    "clientWellKnownInformation": "Информация Client-Well-Known:",
+    "@clientWellKnownInformation": {},
+    "baseUrl": "Базовый URL",
+    "@baseUrl": {},
+    "identityServer": "Сервер идентификации:",
+    "@identityServer": {},
+    "versionWithNumber": "Версия: {version}",
+    "@versionWithNumber": {
+        "type": "String",
+        "placeholders": {
+            "version": {
+                "type": "String"
+            }
+        }
+    },
+    "logs": "Журналы",
+    "@logs": {},
+    "advancedConfigs": "Расширенные настройки",
+    "@advancedConfigs": {},
+    "advancedConfigurations": "Расширенные конфигурации",
+    "@advancedConfigurations": {},
+    "signIn": "Войти",
+    "@signIn": {},
+    "signUpGreeting": "FluffyChat децентрализован! Выберите сервер, на котором вы хотите создать учетную запись, и поехали!",
+    "@signUpGreeting": {},
+    "signInGreeting": "У вас уже есть учетная запись в Matrix? С возвращением! Выберите ваш домашний сервер и войдите.",
+    "@signInGreeting": {},
+    "appIntro": "С FluffyChat вы можете общаться с друзьями. Это безопасный децентрализованный [matrix] мессенджер! Узнайте больше на https://matrix.org, если хотите, или просто зарегистрируйтесь.",
+    "@appIntro": {},
+    "join": "Присоединиться",
+    "@join": {},
+    "chatSearchedUntil": "Чат обыскан до {time}",
+    "@chatSearchedUntil": {
+        "type": "String",
+        "placeholders": {
+            "time": {
+                "type": "String"
+            }
+        }
+    },
+    "stop": "Остановить",
+    "@stop": {}
 }
