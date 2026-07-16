@@ -37,9 +37,9 @@ void main() async {
 
   final store = await AppSettings.init();
   Logs().i('Welcome to ${AppSettings.applicationName.value} <3');
-
+  if (!PlatformInfos.isWeb) {
   await vod.init(wasmPath: './assets/assets/vodozemac/');
-
+  }
   Logs().nativeColors = !PlatformInfos.isIOS;
   final clients = await ClientManager.getClients(store: store);
 
