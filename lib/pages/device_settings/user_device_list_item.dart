@@ -55,11 +55,6 @@ class UserDeviceListItem extends StatelessWidget {
                   label: L10n.of(context).changeDeviceName,
                 ),
                 if (!isOwnDevice && keys != null) ...{
-                  AdaptiveModalAction(
-                    value: UserDeviceListItemAction.verify,
-                    icon: const Icon(Icons.verified_outlined),
-                    label: L10n.of(context).verifyStart,
-                  ),
                   if (!keys.blocked)
                     AdaptiveModalAction(
                       value: UserDeviceListItemAction.block,
@@ -92,9 +87,6 @@ class UserDeviceListItem extends StatelessWidget {
               case UserDeviceListItemAction.remove:
                 remove(userDevice);
                 break;
-              case UserDeviceListItemAction.verify:
-                verify(userDevice);
-                break;
               case UserDeviceListItemAction.block:
                 block(userDevice);
                 break;
@@ -121,9 +113,11 @@ class UserDeviceListItem extends StatelessWidget {
           ),
           subtitle: Text(
             L10n.of(context).lastActiveAgo(
-              DateTime.fromMillisecondsSinceEpoch(
-                userDevice.lastSeenTs ?? 0,
-              ).localizedTimeShort(context),
+          userDevice.lastSeenTs == null
+              ? "Никогда"
+              : DateTime.fromMillisecondsSinceEpoch(
+                  userDevice.lastSeenTs!,
+            ).localizedTimeShort(context),
             ),
             style: const TextStyle(fontWeight: FontWeight.w300),
           ),
@@ -131,16 +125,10 @@ class UserDeviceListItem extends StatelessWidget {
               ? null
               : Text(
                   keys.blocked
-                      ? L10n.of(context).blocked
-                      : keys.verified
-                      ? L10n.of(context).verified
-                      : L10n.of(context).unverified,
+                      ? L10n.of(context).blocked,
                   style: TextStyle(
                     color: keys.blocked
-                        ? Colors.red
-                        : keys.verified
-                        ? Colors.green
-                        : Colors.orange,
+                        ? Colors.red,
                   ),
                 ),
         ),
