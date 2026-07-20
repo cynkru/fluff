@@ -102,44 +102,6 @@ class NewGroupView extends StatelessWidget {
             AnimatedSize(
               duration: FluffyThemes.animationDuration,
               curve: FluffyThemes.animationCurve,
-              child: controller.publicGroup
-                  ? SwitchListTile.adaptive(
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 32,
-                      ),
-                      secondary: const Icon(Icons.search_outlined),
-                      title: Text(L10n.of(context).groupCanBeFoundViaSearch),
-                      value: controller.groupCanBeFound,
-                      onChanged: controller.loading
-                          ? null
-                          : controller.setGroupCanBeFound,
-                    )
-                  : const SizedBox.shrink(),
-            ),
-            AnimatedSize(
-              duration: FluffyThemes.animationDuration,
-              curve: FluffyThemes.animationCurve,
-              child: controller.createGroupType == CreateGroupType.space
-                  ? const SizedBox.shrink()
-                  : SwitchListTile.adaptive(
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 32,
-                      ),
-                      secondary: Icon(
-                        Icons.lock_outlined,
-                        color: theme.colorScheme.onSurface,
-                      ),
-                      title: Text(
-                        L10n.of(context).enableEncryption,
-                        style: TextStyle(color: theme.colorScheme.onSurface),
-                      ),
-                      value: !controller.publicGroup,
-                      onChanged: null,
-                    ),
-            ),
-            AnimatedSize(
-              duration: FluffyThemes.animationDuration,
-              curve: FluffyThemes.animationCurve,
               child: controller.createGroupType == CreateGroupType.space
                   ? ListTile(
                       contentPadding: const EdgeInsets.symmetric(
