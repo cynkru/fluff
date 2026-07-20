@@ -53,7 +53,7 @@ enum AppSettings<T> {
   colorSchemeSeedInt<int>('ru.cynk.color_scheme_seed', 0xFF448AFF),
   emojiSuggestionLocale<String>('emoji_suggestion_locale', ''),
   enableSoftLogout<bool>('ru.cynk.enable_soft_logout', false),
-  bubbleStyle<bool>('ru.cynk.bubbleStyle', false);
+  bubbleStyle<bool>('ru.cynk.bubbleStyle', false),
   useTestBackend<bool>('ru.cynk.use_test_backend', false);
 
   final String key;
