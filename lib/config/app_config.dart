@@ -65,4 +65,7 @@ abstract class AppConfig {
 
   static const String mainIsolatePortName = 'main_isolate';
   static const String pushIsolatePortName = 'push_isolate';
+
+  static const String mainServer = 'https://matrix.cynk.ru';
+  static const String devServer = 'https://s.dev.cynk.ru';
 }

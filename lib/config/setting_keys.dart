@@ -54,6 +54,7 @@ enum AppSettings<T> {
   emojiSuggestionLocale<String>('emoji_suggestion_locale', ''),
   enableSoftLogout<bool>('ru.cynk.enable_soft_logout', false),
   bubbleStyle<bool>('ru.cynk.bubbleStyle', false);
+  useTestBackend<bool>('ru.cynk.use_test_backend', false);
 
   final String key;
   final T defaultValue;

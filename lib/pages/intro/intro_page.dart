@@ -12,6 +12,7 @@ import 'package:cynk/pages/intro/flows/restore_backup_flow.dart';
 import 'package:cynk/utils/platform_infos.dart';
 import 'package:cynk/widgets/layouts/login_scaffold.dart';
 import 'package:cynk/widgets/matrix.dart';
+import 'package:cynk/utils/setting_keys.dart';
 
 class IntroPage extends StatelessWidget {
   const IntroPage({super.key});
@@ -23,6 +24,8 @@ class IntroPage extends StatelessWidget {
       context,
     ).widget.clients.any((client) => client.isLogged());
 
+    final useTestBackend = AppSettings.useTestBackend.value;
+
     return LoginScaffold(
       appBar: AppBar(
         centerTitle: true,
@@ -32,44 +35,36 @@ class IntroPage extends StatelessWidget {
               : "Cynk"
         ),
         actions: [
-          /*PopupMenuButton(
-            useRootNavigator: true,
-            itemBuilder: (_) => [
-              PopupMenuItem(
-                onTap: () => restoreBackupFlow(context),
-                child: Row(
-                  mainAxisSize: .min,
-                  children: [
-                    const Icon(Icons.import_export_outlined),
-                    const SizedBox(width: 12),
-                    Text(L10n.of(context).hydrate),
-                  ],
+          Padding(
+            padding: const EdgeInsets.only(right: 16.0),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Test',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: useTestBackend 
+                        ? theme.colorScheme.primary 
+                        : theme.colorScheme.onSurface.withOpacity(0.5),
+                  ),
                 ),
-              ),
-              PopupMenuItem(
-                onTap: () => launchUrl(AppConfig.privacyUrl),
-                child: Row(
-                  mainAxisSize: .min,
-                  children: [
-                    const Icon(Icons.privacy_tip_outlined),
-                    const SizedBox(width: 12),
-                    Text(L10n.of(context).privacy),
-                  ],
+                Switch(
+                  value: useTestBackend,
+                  onChanged: (value) async {
+                    await AppSettings.useTestBackend.setItem(value);
+                    if (context.mounted) {
+                      Navigator.of(context).pushReplacement(
+                        MaterialPageRoute(builder: (_) => const IntroPage()),
+                      );
+                    }
+                  },
+                  activeColor: theme.colorScheme.primary,
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
-              ),
-              PopupMenuItem(
-                value: () => PlatformInfos.showDialog(context),
-                child: Row(
-                  mainAxisSize: .min,
-                  children: [
-                    const Icon(Icons.info_outlined),
-                    const SizedBox(width: 12),
-                    Text(L10n.of(context).about),
-                  ],
-                ),
-              ),
-            ],
-          ),*/
+              ],
+            ),
+          ),
         ],
       ),
       body: LayoutBuilder(
@@ -95,7 +90,9 @@ class IntroPage extends StatelessWidget {
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 32.0),
                       child: SelectableLinkify(
-                        text: "👋 Привет! Это защищённый мессенджер на базе Matrix",
+                        text: useTestBackend 
+                            ? "🧪 Тестовый сервер Cynk (dev.cynk.ru)"
+                            : "👋 Привет! Это защищённый мессенджер на базе Matrix",
                         textScaleFactor: MediaQuery.textScalerOf(
                           context,
                         ).scale(1),
@@ -107,6 +104,27 @@ class IntroPage extends StatelessWidget {
                         onOpen: (link) => launchUrlString(link.url),
                       ),
                     ),
+                    if (useTestBackend) ...[
+                      const SizedBox(height: 8),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 32.0),
+                        child: Container(
+                          padding: const EdgeInsets.all(8.0),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.errorContainer,
+                            borderRadius: BorderRadius.circular(8.0),
+                          ),
+                          child: Text(
+                            '⚠️ Тестовый режим: данные могут быть удалены',
+                            style: TextStyle(
+                              color: theme.colorScheme.onErrorContainer,
+                              fontSize: 12,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ),
+                    ],
                     const Spacer(),
                     Padding(
                       padding: const EdgeInsets.all(32.0),
@@ -119,7 +137,6 @@ class IntroPage extends StatelessWidget {
                               final matrix = Matrix.of(context);
                               final client = await matrix.getLoginClient();
                               
-                              // Если клиент не получен - показываем ошибку
                               if (client == null) {
                                 if (context.mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
@@ -131,9 +148,12 @@ class IntroPage extends StatelessWidget {
                                 return;
                               }
                               
-                              // Убедимся что homeserver установлен
+                              final homeserverUrl = useTestBackend 
+                                  ? AppConfig.devServer
+                                  : AppConfig.mainServer;
+                              
                               if (client.homeserver == null) {
-                                client.homeserver = Uri.parse('https://matrix.cynk.ru');
+                                client.homeserver = Uri.parse(homeserverUrl);
                               }
                               
                               if (context.mounted) {
@@ -159,7 +179,6 @@ class IntroPage extends StatelessWidget {
                               final matrix = Matrix.of(context);
                               final client = await matrix.getLoginClient();
                               
-                              // Если клиент не получен - показываем ошибку
                               if (client == null) {
                                 if (context.mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
@@ -171,9 +190,12 @@ class IntroPage extends StatelessWidget {
                                 return;
                               }
                               
-                              // Убедимся что homeserver установлен
+                              final homeserverUrl = useTestBackend 
+                                  ? AppConfig.devServer
+                                  : AppConfig.mainServer;
+                              
                               if (client.homeserver == null) {
-                                client.homeserver = Uri.parse('https://matrix.cynk.ru');
+                                client.homeserver = Uri.parse(homeserverUrl);
                               }
                               
                               if (context.mounted) {
