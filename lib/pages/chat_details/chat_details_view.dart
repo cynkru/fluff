@@ -44,6 +44,7 @@ class ChatDetailsView extends StatelessWidget {
         (update) => update.roomId == room.id,
       ),
       builder: (context, snapshot) {
+        // Скрываем участников - берем только первых 10
         var members = room.getParticipants().toList()
           ..sort((b, a) => a.powerLevel.compareTo(b.powerLevel));
         members = members.take(10).toList();
@@ -55,12 +56,17 @@ class ChatDetailsView extends StatelessWidget {
         final displayname = room.getLocalizedDisplayname(
           MatrixLocals(L10n.of(context)),
         );
+        
+        // Проверяем, является ли чат прямым
+        final isDirectChat = room.isDirectChat;
+        
         return Scaffold(
           appBar: AppBar(
             leading:
                 controller.widget.embeddedCloseButton ??
                 const Center(child: BackButton()),
             elevation: theme.appBarTheme.elevation,
+            // Скрываем кнопки настроек для прямых чатов
             actions: <Widget>[
               if (room.canonicalAlias.isNotEmpty)
                 IconButton(
@@ -76,7 +82,8 @@ class ChatDetailsView extends StatelessWidget {
                   onPressed: () =>
                       showQrCodeViewer(context, directChatMatrixID),
                 ),
-              if (controller.widget.embeddedCloseButton == null)
+              // Скрываем настройки для прямых чатов
+              if (controller.widget.embeddedCloseButton == null && !isDirectChat)
                 ChatSettingsPopupMenu(room, false),
             ],
             title: Text(L10n.of(context).chatDetails),
@@ -86,7 +93,8 @@ class ChatDetailsView extends StatelessWidget {
             child: ListView.builder(
               physics: const NeverScrollableScrollPhysics(),
               shrinkWrap: true,
-              itemCount: members.length + 1 + (canRequestMoreMembers ? 1 : 0),
+              // Убираем кнопку загрузки дополнительных участников
+              itemCount: members.length + 1, // Убираем + (canRequestMoreMembers ? 1 : 0)
               itemBuilder: (BuildContext context, int i) => i == 0
                   ? Column(
                       crossAxisAlignment: .stretch,
@@ -116,7 +124,8 @@ class ChatDetailsView extends StatelessWidget {
                                           : null,
                                     ),
                                   ),
-                                  if (!room.isDirectChat &&
+                                  // Скрываем кнопку смены аватарки для прямых чатов
+                                  if (!isDirectChat &&
                                       room.canChangeStateEvent(
                                         EventTypes.RoomAvatar,
                                       ))
@@ -140,8 +149,13 @@ class ChatDetailsView extends StatelessWidget {
                                 crossAxisAlignment: .start,
                                 children: [
                                   TextButton.icon(
-                                    onPressed: () => room.isDirectChat
-                                        ? null
+                                    // Запрещаем менять имя для прямых чатов
+                                    onPressed: () => isDirectChat
+                                        ? FluffyShare.share(
+                                            displayname,
+                                            context,
+                                            copyOnly: true,
+                                          )
                                         : room.canChangeStateEvent(
                                             EventTypes.RoomName,
                                           )
@@ -152,7 +166,7 @@ class ChatDetailsView extends StatelessWidget {
                                             copyOnly: true,
                                           ),
                                     icon: Icon(
-                                      room.isDirectChat
+                                      isDirectChat
                                           ? Icons.chat_bubble_outline
                                           : room.canChangeStateEvent(
                                               EventTypes.RoomName,
@@ -167,7 +181,7 @@ class ChatDetailsView extends StatelessWidget {
                                       iconColor: theme.colorScheme.onSurface,
                                     ),
                                     label: Text(
-                                      room.isDirectChat
+                                      isDirectChat
                                           ? L10n.of(context).directChat
                                           : displayname,
                                       maxLines: 1,
@@ -176,7 +190,8 @@ class ChatDetailsView extends StatelessWidget {
                                     ),
                                   ),
                                   TextButton.icon(
-                                    onPressed: () => room.isDirectChat
+                                    // Скрываем навигацию к списку участников для прямых чатов
+                                    onPressed: () => isDirectChat
                                         ? null
                                         : context.push(
                                             '/rooms/${controller.roomId}/details/members',
@@ -187,8 +202,12 @@ class ChatDetailsView extends StatelessWidget {
                                     ),
                                     style: TextButton.styleFrom(
                                       foregroundColor:
-                                          theme.colorScheme.secondary,
-                                      iconColor: theme.colorScheme.secondary,
+                                          isDirectChat 
+                                              ? theme.colorScheme.onSurface.withOpacity(0.5) 
+                                              : theme.colorScheme.secondary,
+                                      iconColor: isDirectChat 
+                                          ? theme.colorScheme.onSurface.withOpacity(0.5) 
+                                          : theme.colorScheme.secondary,
                                     ),
                                     label: Text(
                                       L10n.of(
@@ -196,7 +215,6 @@ class ChatDetailsView extends StatelessWidget {
                                       ).countParticipants(actualMembersCount),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
-                                      //    style: const TextStyle(fontSize: 12),
                                     ),
                                   ),
                                 ],
@@ -204,8 +222,9 @@ class ChatDetailsView extends StatelessWidget {
                             ),
                           ],
                         ),
-                        if (room.canChangeStateEvent(EventTypes.RoomTopic) ||
-                            room.topic.isNotEmpty) ...[
+                        // Скрываем описание и топик для прямых чатов
+                        if (!isDirectChat && (room.canChangeStateEvent(EventTypes.RoomTopic) ||
+                            room.topic.isNotEmpty)) ...[
                           Divider(color: theme.dividerColor),
                           ListTile(
                             title: Text(
@@ -257,7 +276,8 @@ class ChatDetailsView extends StatelessWidget {
                           ),
                           const SizedBox(height: 16),
                         ],
-                        if (!room.isDirectChat) ...[
+                        // Скрываем настройки доступа и разрешений для прямых чатов
+                        if (!isDirectChat) ...[
                           Divider(color: theme.dividerColor),
                           ListTile(
                             leading: CircleAvatar(
@@ -306,7 +326,8 @@ class ChatDetailsView extends StatelessWidget {
                             ),
                           ),
                         ),
-                        if (!room.isDirectChat && room.canInvite)
+                        // Скрываем приглашение контактов для прямых чатов
+                        if (!isDirectChat && room.canInvite)
                           ListTile(
                             title: Text(L10n.of(context).inviteContact),
                             leading: CircleAvatar(
@@ -324,24 +345,7 @@ class ChatDetailsView extends StatelessWidget {
                     )
                   : i < members.length + 1
                   ? ParticipantListItem(members[i - 1])
-                  : ListTile(
-                      title: Text(
-                        L10n.of(context).loadCountMoreParticipants(
-                          (actualMembersCount - members.length),
-                        ),
-                      ),
-                      leading: CircleAvatar(
-                        backgroundColor: theme.scaffoldBackgroundColor,
-                        child: const Icon(
-                          Icons.group_outlined,
-                          color: Colors.grey,
-                        ),
-                      ),
-                      onTap: () => context.push(
-                        '/rooms/${controller.roomId!}/details/members',
-                      ),
-                      trailing: const Icon(Icons.chevron_right_outlined),
-                    ),
+                  : const SizedBox.shrink(), // Убираем кнопку загрузки дополнительных участников
             ),
           ),
         );
