@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-
 import 'package:matrix/matrix.dart';
-
 import 'package:cynk/config/app_config.dart';
 import 'package:cynk/l10n/l10n.dart';
 import 'package:cynk/widgets/adaptive_dialogs/show_modal_action_popup.dart';
@@ -54,7 +52,7 @@ class UserDeviceListItem extends StatelessWidget {
                   icon: const Icon(Icons.edit_outlined),
                   label: L10n.of(context).changeDeviceName,
                 ),
-                if (!isOwnDevice && keys != null) ...{
+                if (!isOwnDevice && keys != null) ...[
                   if (!keys.blocked)
                     AdaptiveModalAction(
                       value: UserDeviceListItemAction.block,
@@ -69,7 +67,7 @@ class UserDeviceListItem extends StatelessWidget {
                       label: L10n.of(context).unblockDevice,
                       isDestructive: true,
                     ),
-                },
+                ],
                 if (!isOwnDevice)
                   AdaptiveModalAction(
                     value: UserDeviceListItemAction.remove,
@@ -87,6 +85,9 @@ class UserDeviceListItem extends StatelessWidget {
               case UserDeviceListItemAction.remove:
                 remove(userDevice);
                 break;
+              case UserDeviceListItemAction.verify:
+                verify(userDevice);
+                break;
               case UserDeviceListItemAction.block:
                 block(userDevice);
                 break;
@@ -100,10 +101,10 @@ class UserDeviceListItem extends StatelessWidget {
             backgroundColor: keys == null
                 ? Colors.grey[700]
                 : keys.blocked
-                ? Colors.red
-                : keys.verified
-                ? Colors.green
-                : Colors.orange,
+                    ? Colors.red
+                    : keys.verified
+                        ? Colors.green
+                        : Colors.orange,
             child: Icon(userDevice.icon),
           ),
           title: Text(
@@ -113,22 +114,20 @@ class UserDeviceListItem extends StatelessWidget {
           ),
           subtitle: Text(
             L10n.of(context).lastActiveAgo(
-          userDevice.lastSeenTs == null
-              ? "Никогда"
-              : DateTime.fromMillisecondsSinceEpoch(
-                  userDevice.lastSeenTs!,
-            ).localizedTimeShort(context),
+              userDevice.lastSeenTs == null
+                  ? "Никогда"
+                  : DateTime.fromMillisecondsSinceEpoch(
+                      userDevice.lastSeenTs!,
+                    ).localizedTimeShort(context),
             ),
             style: const TextStyle(fontWeight: FontWeight.w300),
           ),
           trailing: keys == null
               ? null
               : Text(
-                  keys.blocked
-                      ? L10n.of(context).blocked,
+                  keys.blocked ? L10n.of(context).blocked : '',
                   style: TextStyle(
-                    color: keys.blocked
-                        ? Colors.red,
+                    color: keys.blocked ? Colors.red : null,
                   ),
                 ),
         ),
