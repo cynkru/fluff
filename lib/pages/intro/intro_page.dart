@@ -12,7 +12,7 @@ import 'package:cynk/pages/intro/flows/restore_backup_flow.dart';
 import 'package:cynk/utils/platform_infos.dart';
 import 'package:cynk/widgets/layouts/login_scaffold.dart';
 import 'package:cynk/widgets/matrix.dart';
-import 'package:cynk/utils/setting_keys.dart';
+import 'package:cynk/config/setting_keys.dart'; // Правильный путь
 
 class IntroPage extends StatelessWidget {
   const IntroPage({super.key});
