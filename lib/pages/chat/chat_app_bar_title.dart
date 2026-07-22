@@ -11,6 +11,7 @@ import 'package:cynk/utils/matrix_sdk_extensions/matrix_locals.dart';
 import 'package:cynk/utils/sync_status_localization.dart';
 import 'package:cynk/widgets/avatar.dart';
 import 'package:cynk/widgets/member_actions_popup_menu_button.dart';
+import 'package:cynk/widgets/matrix.dart';
 import 'package:cynk/widgets/presence_builder.dart';
 
 class ChatAppBarTitle extends StatelessWidget {
@@ -39,16 +40,25 @@ class ChatAppBarTitle extends StatelessWidget {
                 // Личный чат - открываем профиль пользователя
                 final userId = room.directChatMatrixID;
                 if (userId != null) {
-                  // Получаем пользователя из комнаты или создаем минимальный объект
-                  final user = room.getUserById(userId) ?? User(
-                    id: userId,
-                    displayname: room.getLocalizedDisplayname(
-                      MatrixLocals(L10n.of(context)),
-                    ),
-                    avatarUrl: room.avatar,
-                    client: room.client,
-                  );
-                  showMemberActionsPopupMenu(context: context, user: user);
+                  // Получаем пользователя через MatrixSdkDatabase
+                  final client = Matrix.of(context).client;
+                  final database = client.getDatabase();
+                  final user = database?.getUser(userId, room);
+                  
+                  if (user != null) {
+                    showMemberActionsPopupMenu(context: context, user: user);
+                  } else {
+                    // Если пользователь не найден, создаем минимальный объект
+                    final fallbackUser = User(
+                      id: userId,
+                      displayname: room.getLocalizedDisplayname(
+                        MatrixLocals(L10n.of(context)),
+                      ),
+                      avatarUrl: room.avatar,
+                      client: client,
+                    );
+                    showMemberActionsPopupMenu(context: context, user: fallbackUser);
+                  }
                 }
               } else if (FluffyThemes.isThreeColumnMode(context)) {
                 controller.toggleDisplayChatDetailsColumn();
