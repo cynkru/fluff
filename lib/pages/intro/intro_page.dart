@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
 
 import 'package:flutter_linkify/flutter_linkify.dart';
-import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:url_launcher/url_launcher_string.dart';
 
@@ -38,46 +37,6 @@ class _IntroPageState extends State<IntroPage> {
               ? L10n.of(context).addAccount
               : "Cynk"
         ),
-        actions: [
-          /*PopupMenuButton(
-            useRootNavigator: true,
-            itemBuilder: (_) => [
-              PopupMenuItem(
-                onTap: () => restoreBackupFlow(context),
-                child: Row(
-                  mainAxisSize: .min,
-                  children: [
-                    const Icon(Icons.import_export_outlined),
-                    const SizedBox(width: 12),
-                    Text(L10n.of(context).hydrate),
-                  ],
-                ),
-              ),
-              PopupMenuItem(
-                onTap: () => launchUrl(AppConfig.privacyUrl),
-                child: Row(
-                  mainAxisSize: .min,
-                  children: [
-                    const Icon(Icons.privacy_tip_outlined),
-                    const SizedBox(width: 12),
-                    Text(L10n.of(context).privacy),
-                  ],
-                ),
-              ),
-              PopupMenuItem(
-                value: () => PlatformInfos.showDialog(context),
-                child: Row(
-                  mainAxisSize: .min,
-                  children: [
-                    const Icon(Icons.info_outlined),
-                    const SizedBox(width: 12),
-                    Text(L10n.of(context).about),
-                  ],
-                ),
-              ),
-            ],
-          ),*/
-        ],
       ),
       body: LayoutBuilder(
         builder: (context, constraints) {
@@ -201,8 +160,13 @@ class _IntroPageState extends State<IntroPage> {
                             }
                             
                             if (context.mounted) {
-                              // Используем push вместо go
-                              context.push('/login', extra: client);
+                              // Используем Navigator.push
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => LoginPage(client: client),
+                                ),
+                              );
                             }
                           },
                           child: const Text("Войти"),
@@ -242,8 +206,13 @@ class _IntroPageState extends State<IntroPage> {
                             }
                             
                             if (context.mounted) {
-                              // Используем push вместо go
-                              context.push('/register', extra: client);
+                              // Используем Navigator.push
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => RegisterPage(client: client),
+                                ),
+                              );
                             }
                           },
                           child: const Text("Зарегистрироваться"),
