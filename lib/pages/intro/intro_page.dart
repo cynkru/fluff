@@ -1,23 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
+
 import 'package:flutter_linkify/flutter_linkify.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:url_launcher/url_launcher_string.dart';
 
 import 'package:cynk/config/app_config.dart';
 import 'package:cynk/l10n/l10n.dart';
+import 'package:cynk/pages/intro/flows/restore_backup_flow.dart';
+import 'package:cynk/utils/platform_infos.dart';
 import 'package:cynk/widgets/layouts/login_scaffold.dart';
 import 'package:cynk/widgets/matrix.dart';
 
-class IntroPage extends StatefulWidget {
+class IntroPage extends StatelessWidget {
   const IntroPage({super.key});
-
-  @override
-  State<IntroPage> createState() => _IntroPageState();
-}
-
-class _IntroPageState extends State<IntroPage> {
-  bool _useTestBackend = false;
 
   @override
   Widget build(BuildContext context) {
@@ -34,6 +31,46 @@ class _IntroPageState extends State<IntroPage> {
               ? L10n.of(context).addAccount
               : "Cynk"
         ),
+        actions: [
+          /*PopupMenuButton(
+            useRootNavigator: true,
+            itemBuilder: (_) => [
+              PopupMenuItem(
+                onTap: () => restoreBackupFlow(context),
+                child: Row(
+                  mainAxisSize: .min,
+                  children: [
+                    const Icon(Icons.import_export_outlined),
+                    const SizedBox(width: 12),
+                    Text(L10n.of(context).hydrate),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                onTap: () => launchUrl(AppConfig.privacyUrl),
+                child: Row(
+                  mainAxisSize: .min,
+                  children: [
+                    const Icon(Icons.privacy_tip_outlined),
+                    const SizedBox(width: 12),
+                    Text(L10n.of(context).privacy),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: () => PlatformInfos.showDialog(context),
+                child: Row(
+                  mainAxisSize: .min,
+                  children: [
+                    const Icon(Icons.info_outlined),
+                    const SizedBox(width: 12),
+                    Text(L10n.of(context).about),
+                  ],
+                ),
+              ),
+            ],
+          ),*/
+        ],
       ),
       body: LayoutBuilder(
         builder: (context, constraints) {
@@ -43,7 +80,7 @@ class _IntroPageState extends State<IntroPage> {
               child: IntrinsicHeight(
                 child: Column(
                   children: [
-                    Container(
+                     Container(
                       alignment: Alignment.center,
                       padding: const EdgeInsets.symmetric(horizontal: 8.0),
                       child: Hero(
@@ -58,9 +95,7 @@ class _IntroPageState extends State<IntroPage> {
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 32.0),
                       child: SelectableLinkify(
-                        text: _useTestBackend 
-                            ? "🧪 Тестовый сервер Cynk (dev.cynk.ru)"
-                            : "👋 Привет! Это защищённый мессенджер на основе Matrix",
+                        text: "👋 Привет! Это защищённый мессенджер на базе Matrix",
                         textScaleFactor: MediaQuery.textScalerOf(
                           context,
                         ).scale(1),
@@ -72,142 +107,87 @@ class _IntroPageState extends State<IntroPage> {
                         onOpen: (link) => launchUrlString(link.url),
                       ),
                     ),
-                    if (_useTestBackend) ...[
-                      const SizedBox(height: 8),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 32.0),
-                        child: Container(
-                          padding: const EdgeInsets.all(8.0),
-                          decoration: BoxDecoration(
-                            color: theme.colorScheme.errorContainer,
-                            borderRadius: BorderRadius.circular(8.0),
-                          ),
-                          child: Text(
-                            '⚠️ Тестовый режим: данные могут быть удалены',
-                            style: TextStyle(
-                              color: theme.colorScheme.onErrorContainer,
-                              fontSize: 12,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                      ),
-                    ],
                     const Spacer(),
-                    
-                    // Переключатель над кнопками
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 32.0),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                      padding: const EdgeInsets.all(32.0),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          Text(
-                            'Тестировать бэкенд',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: _useTestBackend 
-                                  ? theme.colorScheme.primary 
-                                  : theme.colorScheme.onSurface.withOpacity(0.5),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Switch(
-                            value: _useTestBackend,
-                            onChanged: (value) {
-                              setState(() {
-                                _useTestBackend = value;
-                              });
+                          ElevatedButton(
+                            onPressed: () async {
+                              final matrix = Matrix.of(context);
+                              final client = await matrix.getLoginClient();
+                              
+                              // Если клиент не получен - показываем ошибку
+                              if (client == null) {
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Ошибка подключения к серверу'),
+                                    ),
+                                  );
+                                }
+                                return;
+                              }
+                              
+                              // Убедимся что homeserver установлен
+                              if (client.homeserver == null) {
+                                client.homeserver = Uri.parse('https://matrix.cynk.ru');
+                              }
+                              
+                              if (context.mounted) {
+                                context.go(
+                                  '${GoRouterState.of(context).uri.path}/login',
+                                  extra: client,
+                                );
+                              }
                             },
-                            activeColor: theme.colorScheme.primary,
-                            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            child: Text("Войти"),
                           ),
                         ],
                       ),
                     ),
-                    
-                    const SizedBox(height: 16),
-                    
-                    // Кнопка "Войти"
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 32.0),
-                      child: SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: () async {
-                            final matrix = Matrix.of(context);
-                            final client = await matrix.getLoginClient();
-                            
-                            if (client == null) {
+                      padding: const EdgeInsets.all(32.0),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          ElevatedButton(
+                            onPressed: () async {
+                              final matrix = Matrix.of(context);
+                              final client = await matrix.getLoginClient();
+                              
+                              // Если клиент не получен - показываем ошибку
+                              if (client == null) {
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Ошибка подключения к серверу'),
+                                    ),
+                                  );
+                                }
+                                return;
+                              }
+                              
+                              // Убедимся что homeserver установлен
+                              if (client.homeserver == null) {
+                                client.homeserver = Uri.parse('https://matrix.cynk.ru');
+                              }
+                              
                               if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Ошибка подключения к серверу'),
-                                  ),
+                                context.go(
+                                  '${GoRouterState.of(context).uri.path}/register',
+                                  extra: client,
                                 );
                               }
-                              return;
-                            }
-                            
-                            final homeserverUrl = _useTestBackend 
-                                ? AppConfig.devServer
-                                : AppConfig.mainServer;
-                            
-                            if (client.homeserver == null) {
-                              client.homeserver = Uri.parse(homeserverUrl);
-                            }
-                            
-                            if (context.mounted) {
-                              // Просто переходим на /login
-                              context.go('/login', extra: client);
-                            }
-                          },
-                          child: const Text("Войти"),
-                        ),
+                            },
+                            child: Text("Зарегистрироваться"),
+                          ),
+                        ],
                       ),
                     ),
-                    
-                    const SizedBox(height: 16),
-                    
-                    // Кнопка "Зарегистрироваться"
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 32.0),
-                      child: SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: () async {
-                            final matrix = Matrix.of(context);
-                            final client = await matrix.getLoginClient();
-                            
-                            if (client == null) {
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Ошибка подключения к серверу'),
-                                  ),
-                                );
-                              }
-                              return;
-                            }
-                            
-                            final homeserverUrl = _useTestBackend 
-                                ? AppConfig.devServer
-                                : AppConfig.mainServer;
-                            
-                            if (client.homeserver == null) {
-                              client.homeserver = Uri.parse(homeserverUrl);
-                            }
-                            
-                            if (context.mounted) {
-                              // Просто переходим на /register
-                              context.go('/register', extra: client);
-                            }
-                          },
-                          child: const Text("Зарегистрироваться"),
-                        ),
-                      ),
-                    ),
-                    
-                    const SizedBox(height: 32),
                   ],
                 ),
               ),
