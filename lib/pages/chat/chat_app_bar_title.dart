@@ -39,7 +39,7 @@ class ChatAppBarTitle extends StatelessWidget {
                 // Личный чат - открываем профиль пользователя
                 final userId = room.directChatMatrixID;
                 if (userId != null) {
-                  final user = room.getUser(userId);
+                  final user = room.getUserByUserId(userId);
                   if (user != null) {
                     showMemberActionsPopupMenu(context: context, user: user);
                   }
