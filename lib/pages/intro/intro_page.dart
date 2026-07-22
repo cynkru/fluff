@@ -6,11 +6,8 @@ import 'package:url_launcher/url_launcher_string.dart';
 
 import 'package:cynk/config/app_config.dart';
 import 'package:cynk/l10n/l10n.dart';
-import 'package:cynk/pages/intro/flows/restore_backup_flow.dart';
-import 'package:cynk/utils/platform_infos.dart';
 import 'package:cynk/widgets/layouts/login_scaffold.dart';
 import 'package:cynk/widgets/matrix.dart';
-import 'package:cynk/config/setting_keys.dart';
 
 class IntroPage extends StatefulWidget {
   const IntroPage({super.key});
@@ -21,25 +18,6 @@ class IntroPage extends StatefulWidget {
 
 class _IntroPageState extends State<IntroPage> {
   bool _useTestBackend = false;
-
-  // Вспомогательный метод для навигации
-  void _navigateTo(String route, Client client) {
-    try {
-      // Пытаемся получить текущий путь
-      final currentPath = GoRouterState.maybeOf(context)?.uri.path ?? '';
-      
-      if (currentPath.isNotEmpty && currentPath != '/') {
-        // Если мы на подстранице, используем относительный путь
-        context.go('$currentPath$route', extra: client);
-      } else {
-        // Если мы на главной, используем абсолютный путь
-        context.go(route, extra: client);
-      }
-    } catch (e) {
-      // В случае ошибки просто используем абсолютный путь
-      context.go(route, extra: client);
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -138,8 +116,6 @@ class _IntroPageState extends State<IntroPage> {
                             onChanged: (value) {
                               setState(() {
                                 _useTestBackend = value;
-                                // Закомментировано сохранение в глобальное хранилище
-                                // AppSettings.useTestBackend.setItem(value);
                               });
                             },
                             activeColor: theme.colorScheme.primary,
@@ -181,7 +157,8 @@ class _IntroPageState extends State<IntroPage> {
                             }
                             
                             if (context.mounted) {
-                              _navigateTo('/login', client);
+                              // Просто переходим на /login
+                              context.go('/login', extra: client);
                             }
                           },
                           child: const Text("Войти"),
@@ -221,7 +198,8 @@ class _IntroPageState extends State<IntroPage> {
                             }
                             
                             if (context.mounted) {
-                              _navigateTo('/register', client);
+                              // Просто переходим на /register
+                              context.go('/register', extra: client);
                             }
                           },
                           child: const Text("Зарегистрироваться"),
