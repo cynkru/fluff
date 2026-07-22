@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
 
 import 'package:flutter_linkify/flutter_linkify.dart';
+import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:url_launcher/url_launcher_string.dart';
 
@@ -37,6 +38,46 @@ class _IntroPageState extends State<IntroPage> {
               ? L10n.of(context).addAccount
               : "Cynk"
         ),
+        actions: [
+          /*PopupMenuButton(
+            useRootNavigator: true,
+            itemBuilder: (_) => [
+              PopupMenuItem(
+                onTap: () => restoreBackupFlow(context),
+                child: Row(
+                  mainAxisSize: .min,
+                  children: [
+                    const Icon(Icons.import_export_outlined),
+                    const SizedBox(width: 12),
+                    Text(L10n.of(context).hydrate),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                onTap: () => launchUrl(AppConfig.privacyUrl),
+                child: Row(
+                  mainAxisSize: .min,
+                  children: [
+                    const Icon(Icons.privacy_tip_outlined),
+                    const SizedBox(width: 12),
+                    Text(L10n.of(context).privacy),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: () => PlatformInfos.showDialog(context),
+                child: Row(
+                  mainAxisSize: .min,
+                  children: [
+                    const Icon(Icons.info_outlined),
+                    const SizedBox(width: 12),
+                    Text(L10n.of(context).about),
+                  ],
+                ),
+              ),
+            ],
+          ),*/
+        ],
       ),
       body: LayoutBuilder(
         builder: (context, constraints) {
@@ -119,6 +160,8 @@ class _IntroPageState extends State<IntroPage> {
                             onChanged: (value) {
                               setState(() {
                                 _useTestBackend = value;
+                                // Сохранение закомментировано
+                                // AppSettings.useTestBackend.setItem(value);
                               });
                             },
                             activeColor: theme.colorScheme.primary,
@@ -160,13 +203,7 @@ class _IntroPageState extends State<IntroPage> {
                             }
                             
                             if (context.mounted) {
-                              // Используем Navigator.push
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => LoginPage(client: client),
-                                ),
-                              );
+                              context.go('/home/login', extra: client);
                             }
                           },
                           child: const Text("Войти"),
@@ -206,13 +243,7 @@ class _IntroPageState extends State<IntroPage> {
                             }
                             
                             if (context.mounted) {
-                              // Используем Navigator.push
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => RegisterPage(client: client),
-                                ),
-                              );
+                              context.go('/home/register', extra: client);
                             }
                           },
                           child: const Text("Зарегистрироваться"),
