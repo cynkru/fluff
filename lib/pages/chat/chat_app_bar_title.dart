@@ -10,6 +10,7 @@ import 'package:cynk/utils/date_time_extension.dart';
 import 'package:cynk/utils/matrix_sdk_extensions/matrix_locals.dart';
 import 'package:cynk/utils/sync_status_localization.dart';
 import 'package:cynk/widgets/avatar.dart';
+import 'package:cynk/widgets/member_actions_popup_menu_button.dart';
 import 'package:cynk/widgets/presence_builder.dart';
 
 class ChatAppBarTitle extends StatelessWidget {
@@ -33,9 +34,22 @@ class ChatAppBarTitle extends StatelessWidget {
       highlightColor: Colors.transparent,
       onTap: controller.isArchived
           ? null
-          : () => FluffyThemes.isThreeColumnMode(context)
-                ? controller.toggleDisplayChatDetailsColumn()
-                : context.go('/rooms/${room.id}/details'),
+          : () {
+              if (room.isDirectChat) {
+                // Личный чат - открываем профиль пользователя
+                final userId = room.directChatMatrixID;
+                if (userId != null) {
+                  final user = room.getUser(userId);
+                  if (user != null) {
+                    showMemberActionsPopupMenu(context: context, user: user);
+                  }
+                }
+              } else if (FluffyThemes.isThreeColumnMode(context)) {
+                controller.toggleDisplayChatDetailsColumn();
+              } else {
+                context.go('/rooms/${room.id}/details');
+              }
+            },
       child: Row(
         children: [
           Hero(
@@ -51,7 +65,7 @@ class ChatAppBarTitle extends StatelessWidget {
           const SizedBox(width: 12),
           Expanded(
             child: Column(
-              crossAxisAlignment: .start,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   room.getLocalizedDisplayname(MatrixLocals(L10n.of(context))),
@@ -78,7 +92,7 @@ class ChatAppBarTitle extends StatelessWidget {
                               builder: (context, presence) {
                                 final lastActiveTimestamp =
                                     presence?.lastActiveTimestamp;
-                                final style = TextStyle(fontSize: 11);
+                                final style = const TextStyle(fontSize: 11);
                                 if (presence?.currentlyActive == true) {
                                   return Text(
                                     L10n.of(context).currentlyActive,
@@ -111,7 +125,7 @@ class ChatAppBarTitle extends StatelessWidget {
                                 Expanded(
                                   child: Text(
                                     status.calcLocalizedString(context),
-                                    style: TextStyle(fontSize: 12),
+                                    style: const TextStyle(fontSize: 12),
                                   ),
                                 ),
                               ],

@@ -44,6 +44,18 @@ class SettingsView extends StatelessWidget {
     return userId;
   }
 
+  // Получение URL сервера из текущей сессии
+  String _getHomeserverUrl(BuildContext context) {
+    final client = Matrix.of(context).client;
+    // Берем homeserver из клиента
+    final homeserver = client.homeserver;
+    if (homeserver != null) {
+      return homeserver.toString();
+    }
+    // Если почему-то нет - используем дефолтный
+    return AppConfig.mainServer;
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -291,10 +303,11 @@ class SettingsView extends StatelessWidget {
   Future<Map<String, dynamic>> _loadUserBadges(BuildContext context) async {
     final client = Matrix.of(context).client;
     final userId = client.userID!;
+    final homeserverUrl = _getHomeserverUrl(context);
 
     try {
       final response = await client.httpClient.get(
-        Uri.parse('https://matrix.cynk.ru/_matrix/client/v3/profile/$userId'),
+        Uri.parse('$homeserverUrl/_matrix/client/v3/profile/$userId'),
       );
 
       if (response.statusCode == 200) {
