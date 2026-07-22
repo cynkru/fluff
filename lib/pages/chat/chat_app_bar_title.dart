@@ -39,10 +39,16 @@ class ChatAppBarTitle extends StatelessWidget {
                 // Личный чат - открываем профиль пользователя
                 final userId = room.directChatMatrixID;
                 if (userId != null) {
-                  final user = room.getUserByUserId(userId);
-                  if (user != null) {
-                    showMemberActionsPopupMenu(context: context, user: user);
-                  }
+                  // Получаем пользователя из комнаты или создаем минимальный объект
+                  final user = room.getUserById(userId) ?? User(
+                    id: userId,
+                    displayname: room.getLocalizedDisplayname(
+                      MatrixLocals(L10n.of(context)),
+                    ),
+                    avatarUrl: room.avatar,
+                    client: room.client,
+                  );
+                  showMemberActionsPopupMenu(context: context, user: user);
                 }
               } else if (FluffyThemes.isThreeColumnMode(context)) {
                 controller.toggleDisplayChatDetailsColumn();
