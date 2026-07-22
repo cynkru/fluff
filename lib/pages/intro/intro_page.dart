@@ -160,8 +160,6 @@ class _IntroPageState extends State<IntroPage> {
                             onChanged: (value) {
                               setState(() {
                                 _useTestBackend = value;
-                                // Сохранение закомментировано
-                                // AppSettings.useTestBackend.setItem(value);
                               });
                             },
                             activeColor: theme.colorScheme.primary,
@@ -203,8 +201,8 @@ class _IntroPageState extends State<IntroPage> {
                             }
                             
                             if (context.mounted) {
-                              // Убираем GoRouterState.of, используем прямой переход
-                              context.go('/login', extra: client);
+                              // Используем push вместо go
+                              context.push('/login', extra: client);
                             }
                           },
                           child: const Text("Войти"),
@@ -244,8 +242,8 @@ class _IntroPageState extends State<IntroPage> {
                             }
                             
                             if (context.mounted) {
-                              // Убираем GoRouterState.of, используем прямой переход
-                              context.go('/register', extra: client);
+                              // Используем push вместо go
+                              context.push('/register', extra: client);
                             }
                           },
                           child: const Text("Зарегистрироваться"),
