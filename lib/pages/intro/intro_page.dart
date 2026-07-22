@@ -20,7 +20,26 @@ class IntroPage extends StatefulWidget {
 }
 
 class _IntroPageState extends State<IntroPage> {
-  bool _useTestBackend = false; // Локальное состояние
+  bool _useTestBackend = false;
+
+  // Вспомогательный метод для навигации
+  void _navigateTo(String route, Client client) {
+    try {
+      // Пытаемся получить текущий путь
+      final currentPath = GoRouterState.maybeOf(context)?.uri.path ?? '';
+      
+      if (currentPath.isNotEmpty && currentPath != '/') {
+        // Если мы на подстранице, используем относительный путь
+        context.go('$currentPath$route', extra: client);
+      } else {
+        // Если мы на главной, используем абсолютный путь
+        context.go(route, extra: client);
+      }
+    } catch (e) {
+      // В случае ошибки просто используем абсолютный путь
+      context.go(route, extra: client);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -37,9 +56,6 @@ class _IntroPageState extends State<IntroPage> {
               ? L10n.of(context).addAccount
               : "Cynk"
         ),
-        actions: [
-          // Убираем переключатель из AppBar
-        ],
       ),
       body: LayoutBuilder(
         builder: (context, constraints) {
@@ -165,8 +181,7 @@ class _IntroPageState extends State<IntroPage> {
                             }
                             
                             if (context.mounted) {
-                              // Исправлено: убираем GoRouterState.of
-                              context.go('/login', extra: client);
+                              _navigateTo('/login', client);
                             }
                           },
                           child: const Text("Войти"),
@@ -206,8 +221,7 @@ class _IntroPageState extends State<IntroPage> {
                             }
                             
                             if (context.mounted) {
-                              // Исправлено: убираем GoRouterState.of
-                              context.go('/register', extra: client);
+                              _navigateTo('/register', client);
                             }
                           },
                           child: const Text("Зарегистрироваться"),
